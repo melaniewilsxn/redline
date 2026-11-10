@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+# Data
+*.db
+*.db-journal
+backend/scripts/output/
+# Node
+node_modules/
+frontend/dist/
+# Environment and editors
+.env
+.DS_Store
+.vscode/
+.idea/
+# Confidential assessment prompt
+docs/assessment-prompt.md

@@ -1,0 +1,93 @@
+1. Parties and defined terms
+
+This Master Services Agreement is between Northwind Supply Co., called the "Company", and the customer named on the order, called the "Customer". "Goods" means the products listed on an order. "Services" means the delivery, installation, and training described in a statement of work. "Order" means a written order that both parties sign. The Company's obligations under this agreement are the obligations set out in these sections and in each order. the Customer shall look only to those writings for what the Company has promised.
+
+
+2. Orders
+
+the Customer shall send each order in writing and shall describe the Goods, the delivery place, and the date the Customer wants delivery. The Company may accept or decline an order. An order is binding only when the Company accepts it in writing. the Customer shall not treat a price list, a sample, or a conversation with a salesperson as an acceptance. If an order conflicts with this agreement, this agreement wins unless the order says, in a clause that names this section, that the order wins.
+
+
+3. Delivery
+
+The Company shall deliver the Goods to the place named in the order. Risk in the Goods passes to the Customer when the carrier collects them from the Company's warehouse. the Customer shall inspect the Goods within five business days after they arrive and shall write to the Company about any shortage or visible damage in that time. If the Customer does not write in that time, the Customer accepts the Goods as delivered, except for defects that a careful inspection could not have found.
+
+
+4. Price and payment
+
+Prices are the prices on the accepted order, in United States dollars, and they do not include taxes, duties, or carriage. the Customer shall pay each invoice within thirty days of its date. the Customer shall pay a late charge of one percent a month on amounts that are overdue, or the highest rate the law allows if that rate is lower. The Company may suspend delivery while any undisputed amount is overdue. the Customer shall not set off a disputed claim against an invoice unless the Company has agreed in writing.
+
+
+5. The Company's obligations
+
+The Company's obligations are to supply the Goods described in the accepted order, to perform the Services with reasonable care, and to pass good title. The Company does not promise that the Goods will be fit for a purpose that the Customer did not describe in the order. the Customer shall give the Company the information, access, and decisions the Company needs, and the Company is not late to the extent the Customer delays those things. Samples are illustrations. They are not a promise that every unit will match the sample in every respect.
+
+
+6. Acceptance of Services
+
+When the Company finishes a Service, it shall tell the Customer. the Customer shall test the Service against the statement of work within ten business days. the Customer shall accept the Service, or shall send a written list of failures that cites the statement of work. If the Customer does not reply in that time, the Customer accepts the Service. The Company shall correct a listed failure that is the Company's to correct, and the Customer shall then repeat only the tests that failed.
+
+
+7. People on site
+
+the Customer shall give the Company's staff a safe place to work and shall tell them about hazards on the site. The Company's staff shall follow the Customer's reasonable site rules that the Customer gives them in advance. the Customer shall not ask those staff to do work that is outside the order. Nothing in this agreement makes the Company's staff the Customer's employees.
+
+
+8. Records
+
+the Customer shall keep records of how it stores and uses the Goods for three years after delivery. the Customer shall let the Company look at those records once a year, on reasonable notice, during business hours, to check that the Customer is following this agreement. The Company shall not use that access to take the Customer's unrelated business information. Each party shall keep the other's confidential information as section 15 describes.
+
+
+9. Warranties
+
+The Company warrants that, for twelve months after delivery, the Goods will match the written specification on the order in all material ways and will be free from defects in materials and workmanship. The Customer's remedy is, at the Company's choice, repair, replacement, or a refund of the price of the affected Goods. the Customer shall return the affected Goods if the Company asks. This warranty does not cover damage from misuse, from a change the Customer made, or from ordinary wear.
+
+
+10. Indemnity
+
+the Customer shall indemnify the Company against claims by a third party that arise out of the Customer's use of the Goods, the Customer's instructions, or a change the Customer made to the Goods, including claims for injury or for infringement that those instructions or changes cause. The Company shall give the Customer prompt notice of a claim, and the Customer shall have control of the defense. The Company may take part with its own counsel at its own cost. This indemnity is one way: the Company does not give the Customer a matching indemnity in this agreement.
+
+
+11. Limitation of liability
+
+There is no cap on the Company's liability for death or personal injury caused by its negligence, for fraud, or for any liability that the law says cannot be limited. For every other claim arising out of this agreement, the Company's total liability is not capped by the fees paid and is not limited to a multiple of those fees. The Customer has asked for that allocation, and the price does not include a discount in exchange for a cap. Neither party is liable for loss of profit, loss of goodwill, or other indirect loss, except where section 10 or this section says otherwise.
+
+
+12. Insurance
+
+the Customer shall keep commercial general liability insurance of at least two million dollars for each occurrence while it uses the Goods, and shall name the Company as an additional insured on request. the Customer shall send a certificate when the Company asks. The insurance does not limit the Customer's liability under this agreement.
+
+
+13. Changes
+
+Either party may propose a change to an order. the Customer shall pay for work done before a change is agreed. A change is binding only when both parties sign a written change. The Company may charge a reasonable price for studying a change that the Customer then does not take. the Customer shall not treat silence as agreement to a change.
+
+
+14. Term and termination for convenience
+
+This agreement starts when both parties sign it and continues until either party ends it. Either party may terminate this agreement for convenience by giving thirty days' written notice. Orders that the Company has already accepted stay in force, and the Customer shall pay for Goods delivered and Services performed up to the end of those orders. Sections that by their nature should survive, including payment, indemnity, liability, and confidentiality, survive termination.
+
+
+15. Confidentiality
+
+Each party shall keep the other's non-public business, pricing, and technical information confidential and shall use it only to perform this agreement. A party may share that information with staff and advisers who need it and who are bound to keep it confidential. These duties do not apply to information that is public through no fault of the receiver, that the receiver already knew, or that the receiver must disclose by law. If the law requires disclosure, the receiver shall, where it legally may, tell the other party first. These duties last for three years after the agreement ends.
+
+
+16. Assignment and change of control
+
+Neither party may assign this agreement without the other's written consent, except that the Company may assign it to an affiliate or to a buyer of the Company's supply business. A change of control of the Customer is an assignment. If the Customer goes through a change of control, the Company may end this agreement and any open order by written notice within thirty days after the Company learns of the change. the Customer shall tell the Company about a change of control before it happens, or promptly after if the law forbids earlier notice.
+
+
+17. Governing law
+
+New York law governs this agreement, without its conflict-of-laws rules. The courts of New York City have exclusive jurisdiction, and each party consents to that jurisdiction. The United Nations Convention on Contracts for the International Sale of Goods does not apply. A party does not waive a right by waiting to use it.
+
+
+18. Notices
+
+Notices under this agreement shall be in writing and shall be delivered by hand, by a tracked courier, or by email to the addresses on the order. A notice is received when it is delivered, or, for email, on the next business day after it was sent if the sender does not receive an error report. the Customer shall keep its notice address current. A notice sent to an old address counts as received if the Customer failed to send the new address.
+
+
+19. General
+
+This agreement and the accepted orders are the whole agreement about their subject. They replace earlier talks and proposals. A change to this agreement must be in writing and signed by both parties. If a court holds a clause unenforceable, the rest of the agreement stays in force. The Customer and the Company are independent contractors. the Customer shall not hold itself out as the Company's agent. This agreement may be signed in counterparts, including electronic counterparts.

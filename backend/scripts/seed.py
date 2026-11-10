@@ -1,0 +1,57 @@
+import logging
+import sys
+from pathlib import Path
+
+from redline.config import load_settings
+from redline.logging_setup import configure_logging
+from redline.services.document_service import create_document
+from redline.storage.database import apply_schema, get_safe_error_detail, open_connection_pool
+from redline.storage.document_repository import list_documents
+
+logger = logging.getLogger(__name__)
+
+CONTRACTS_DIRECTORY = Path(__file__).resolve().parents[2] / "sample_data" / "contracts"
+SEED_AUTHOR = "Seed"
+EXISTING_DOCUMENT_PROBE_LIMIT = 1
+EXISTING_DOCUMENT_PROBE_OFFSET = 0
+
+
+def main() -> None:
+    """Load the sample contracts, or skip when the database already has documents."""
+    try:
+        settings = load_settings()
+        configure_logging(settings.log_level)
+        seeded_count = seed_documents(settings.database_url)
+        logger.info(f"Finished seeding {seeded_count} documents")
+    except Exception as error:
+        logger.error(f"Failed to seed documents: {get_safe_error_detail(error)}")
+        sys.exit(1)
+
+
+def seed_documents(database_url: str) -> int:
+    """Create one document per contract file when the database is empty."""
+    contract_paths = sorted(CONTRACTS_DIRECTORY.glob("*.txt"))
+    if not contract_paths:
+        raise RuntimeError(f"No contracts found in {CONTRACTS_DIRECTORY}")
+    pool = open_connection_pool(database_url)
+    try:
+        with pool.connection() as connection:
+            apply_schema(connection)
+            existing = list_documents(
+                connection,
+                EXISTING_DOCUMENT_PROBE_LIMIT,
+                EXISTING_DOCUMENT_PROBE_OFFSET,
+            )
+            if existing.total_count > 0:
+                logger.info(f"Skipping seed because {existing.total_count} documents already exist")
+                return 0
+            for path in contract_paths:
+                title = path.stem.replace("_", " ")
+                create_document(connection, title, path.read_text(), SEED_AUTHOR)
+        return len(contract_paths)
+    finally:
+        pool.close()
+
+
+if __name__ == "__main__":
+    main()

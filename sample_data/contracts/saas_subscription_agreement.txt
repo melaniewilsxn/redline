@@ -1,0 +1,81 @@
+1. The service
+
+This subscription agreement is between Lumen Field Software and the customer named on the order form, called the "Customer". Lumen Field will provide the hosted software described on the order form, called the "Service". The Customer may use the Service for its own internal business during the subscription term, up to the number of users on the order form. the Customer shall not resell the Service, and shall not let a competitor of Lumen Field use it. The Service is software as a service. The Customer does not receive a copy of the server software.
+
+
+2. Accounts
+
+the Customer shall appoint an administrator and shall keep user accounts accurate. the Customer shall require each user to keep credentials secret and shall turn off an account when a person leaves the Customer's organization. Lumen Field may suspend an account that it reasonably believes is compromised, and it shall tell the Customer promptly. the Customer shall be responsible for activity under its accounts, except where Lumen Field failed to apply a suspension the Customer asked for.
+
+
+3. Customer data
+
+The Customer keeps ownership of the data it submits to the Service. the Customer shall have all rights it needs in that data, and shall not submit data that infringes a third party's rights. Lumen Field shall use customer data only to provide the Service, to prevent abuse, and to meet the law. Lumen Field shall not use customer data to train a general model. On request during the term, Lumen Field shall export the Customer's data in a common format. After the agreement ends, Lumen Field shall delete customer data within sixty days, except copies a backup keeps for up to ninety days and copies the law requires it to keep.
+
+
+4. Acceptable use
+
+the Customer shall not use the Service to break the law, to send malware, to probe a system without permission, or to overload the Service. the Customer shall not attempt to gain access to another customer's data. Lumen Field may suspend the Service for a breach of this section that creates a real risk, and it shall limit the suspension to what is needed and shall restore the Service when the risk has passed. the Customer shall cooperate with a reasonable investigation of abuse.
+
+
+5. Availability
+
+Lumen Field shall use reasonable care to make the Service available. Planned maintenance shall be announced at least two days ahead when Lumen Field can do so. The Service may be interrupted by causes outside Lumen Field's reasonable control. Lumen Field shall work to restore the Service and shall tell the Customer about a material interruption. This section does not promise a particular uptime percentage.
+
+
+6. Support
+
+Lumen Field shall provide support by email on business days for faults in the Service. the Customer shall send enough detail for Lumen Field to reproduce a fault. Lumen Field shall respond to a severity-one fault, meaning the Service is down for all of the Customer's users, within four business hours. Response means a qualified person has started work. It does not mean the fault is fixed.
+
+
+7. Fees
+
+the Customer shall pay the fees on the order form, yearly in advance, within thirty days of the invoice. Fees are in United States dollars and do not include taxes. the Customer shall pay taxes that apply, other than taxes on Lumen Field's net income. If a payment is overdue, Lumen Field may charge one percent a month or the highest lawful rate, whichever is lower, and may suspend the Service after ten days' notice. Fees are non-refundable except where this agreement says otherwise. the Customer shall not withhold a fee because of a dispute that the Customer has not described in writing.
+
+
+8. Warranty and remedy
+
+Lumen Field warrants that the Service will perform in material conformity with its written documentation. If it does not, the Customer shall tell Lumen Field, and Lumen Field shall use reasonable efforts to correct the failure. If Lumen Field cannot correct a material failure within thirty days, the Customer may end the affected subscription and receive a refund of prepaid fees for the unused remainder of the term. That refund is the Customer's sole remedy for the warranty in this section.
+
+
+9. Confidentiality
+
+Each party shall keep the other's non-public information confidential and shall use it only to perform this agreement. the Customer shall treat the documentation and the non-public features of the Service as confidential. These duties do not apply to information that is public through no fault of the receiver, that the receiver already knew, or that the law requires the receiver to disclose. The duties last for three years after the agreement ends.
+
+
+10. Limitation of liability
+
+Except for the Customer's duty to pay fees, for a breach of confidentiality, and for liability that the law says cannot be limited, each party's total liability arising out of this agreement is limited to the fees the Customer paid Lumen Field under this agreement in the twelve months before the claim. Neither party is liable for lost profits or other indirect loss. The cap in this section is a high limit relative to a single month of fees, and the parties have allocated risk on that basis. Nothing in this section limits liability for death or personal injury caused by negligence, or for fraud.
+
+
+11. Term, renewal, and termination for convenience
+
+The subscription starts on the date on the order form and continues for the term stated there. It renews for successive one-year terms unless either party gives written notice at least thirty days before the end of the then-current term. Either party may terminate this agreement for convenience before a renewal by giving that notice; termination for convenience takes effect at the end of the then-current term, and the Customer shall not receive a refund of fees for the term already started. Either party may end the agreement immediately by notice if the other party materially breaches it and does not cure the breach within thirty days after notice, or immediately if the breach cannot be cured.
+
+
+12. Assignment and change of control
+
+Neither party may assign this agreement without the other's written consent, except to a buyer of substantially all of the assigning party's business. A change of control of the Customer is an assignment. If a competitor of Lumen Field acquires control of the Customer, Lumen Field may end the agreement by notice, and the Customer shall pay fees through the effective date of that notice. the Customer shall tell Lumen Field about a change of control as soon as it may legally do so.
+
+
+13. Governing law
+
+California law governs this agreement, without its conflict-of-laws rules. The state and federal courts in San Francisco, California, have exclusive jurisdiction, and each party consents to that jurisdiction. The United Nations Convention on Contracts for the International Sale of Goods does not apply. A party who substantially wins a proceeding to enforce this agreement may recover its reasonable attorneys' fees from the other party.
+
+
+14. Security
+
+Lumen Field shall keep administrative, technical, and physical safeguards that are appropriate to the nature of the customer data. the Customer shall configure its use of the Service, including user roles, in a way that fits the sensitivity of its data. Lumen Field shall notify the Customer without undue delay after it confirms a breach of security that affects the Customer's data. the Customer shall be responsible for notices to its own personnel where the Customer is the controller of that data.
+
+
+15. General
+
+This agreement and the order form are the whole agreement about the Service. A change must be in writing. If a court holds a clause unenforceable, the rest stays in force. The parties are independent contractors, and the Customer shall not hold itself out as Lumen Field's agent. Lumen Field may use the Customer's name as a customer, unless the Customer asks it not to. This agreement may be signed in counterparts. Notices shall be in writing to the addresses on the order form. the Customer shall keep its notice address current.
+
+16. Beta features
+
+Lumen Field may offer a feature marked as beta. A beta feature is provided for evaluation, may change, and may be withdrawn. the Customer shall not rely on a beta feature for a process the Customer cannot run another way. Fees, unless the order form says otherwise, do not include a promise that a beta feature will become generally available. the Customer shall send comments on a beta feature if Lumen Field asks, and those comments are feedback that Lumen Field may use.
+
+17. Professional services
+
+If the order form includes setup or training, Lumen Field shall perform that work with reasonable care and in accordance with the order form. the Customer shall make its staff and its sample data available at the times the parties agree. Work that is not on the order form needs a written change. the Customer shall pay for professional services at the rates on the order form, monthly in arrears, separately from the subscription fee.

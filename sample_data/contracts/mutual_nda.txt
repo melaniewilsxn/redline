@@ -1,0 +1,90 @@
+1. Purpose
+
+This mutual non-disclosure agreement is between Harbor Lane Analytics and the organization named on the signature page. Each may be a disclosing party or a receiving party. The parties wish to discuss a possible supply of analytics services, and each will share non-public information for that purpose only. This agreement does not require either party to proceed with a transaction, and it does not grant a license except the limited right to use information as this agreement allows.
+
+
+2. Confidential information
+
+"Confidential information" means non-public information that a party discloses in writing and marks as confidential, or that a party discloses orally and confirms in writing within fifteen days. It includes business plans, pricing, customer lists, security practices, and the existence of the discussions. It does not include information that is public through no fault of the receiver, that the receiver already knew without a duty of confidence, that the receiver develops independently, or that the receiver receives from someone else who was free to share it.
+
+
+3. Use and care
+
+The receiving party shall use confidential information only to evaluate the possible transaction. the Customer shall, where the Customer is the receiving party, limit access to people who need the information for that evaluation and who are bound by duties at least as protective as these. The receiving party shall protect the information with at least the care it uses for its own confidential information of similar importance, and in any event with reasonable care. The receiving party shall not reverse engineer samples except to the extent the law forbids that restriction.
+
+
+4. Required disclosure
+
+If a law or a court requires the receiving party to disclose confidential information, the receiving party shall, to the extent legally allowed, give the disclosing party prompt notice so the disclosing party can seek a protective order. The receiving party shall disclose only what the law requires. A disclosure made under this section, after that notice, is not a breach.
+
+
+5. Return
+
+When the disclosing party asks, or when the discussions end, the receiving party shall return or destroy the confidential information, including copies, and shall confirm in writing that it has done so. The receiving party may keep one copy in the files of its outside counsel, and copies that an automatic backup keeps, so long as those copies stay subject to this agreement. the Customer shall not keep a working copy in a shared drive after the discussions end.
+
+
+6. No warranty of the information
+
+The disclosing party provides confidential information as it is. Neither party warrants that the information is complete or accurate, and neither party is liable to the other for the other's decision to rely on it, except for a breach of this agreement. This agreement does not require a party to disclose anything.
+
+
+7. Remedies
+
+Money may not be a sufficient remedy for a breach of this agreement. A party may seek an injunction without proving actual damages and without posting a bond to the extent a court may waive the bond. Those remedies are in addition to any other remedy.
+
+
+8. Term of the duties
+
+This agreement starts on the date of the last signature and the exchange of information may continue for one year. The duties of confidence last for three years after a disclosure, and they last for as long as a trade secret remains a trade secret if the information is a trade secret. Either party may end the discussions at any time by written notice. Ending the discussions does not end the duties of confidence.
+
+
+9. Assignment and change of control
+
+A party may not assign this agreement without the other's written consent. A change of control of a party is an assignment. If the Customer goes through a change of control, Harbor Lane may end this agreement by written notice, and the Customer's duties of confidence continue for the remaining term. the Customer shall give notice of a change of control as soon as it may legally do so.
+
+
+10. Governing law
+
+Delaware law governs this agreement, without its conflict-of-laws rules. The state and federal courts in Wilmington, Delaware, have exclusive jurisdiction, and each party consents to that jurisdiction. The United Nations Convention on Contracts for the International Sale of Goods does not apply.
+
+
+11. Termination for convenience
+
+Either party may terminate this agreement for convenience by written notice. Termination stops further disclosure. It does not release a party from a duty that arose before the notice, and it does not release the duties in sections 3, 5, and 7. the Customer shall still return or destroy information as section 5 requires.
+
+
+12. General
+
+This agreement is the whole agreement about its subject. A change must be in writing and signed by both parties. If a court holds a clause unenforceable, the rest stays in force. A party does not waive a right by waiting to use it. This agreement may be signed in counterparts. Notices shall be in writing to the addresses on the signature page. Nothing in this agreement makes either party the agent of the other, and the Customer shall not hold itself out as Harbor Lane's partner.
+
+13. Residuals
+
+The receiving party may use general ideas, skills, and know-how that its people remember without notes after they have been exposed to confidential information. That right does not allow the receiving party to use or disclose the confidential information itself, and it does not allow the receiving party to copy the disclosing party's documents. the Customer shall not treat this section as permission to keep a private summary of the disclosing party's pricing or customer lists.
+
+14. Compelled copies and regulators
+
+If a regulator asks the Customer for information that includes the disclosing party's confidential information, the Customer shall tell the disclosing party as soon as the law allows and shall ask the regulator to treat the information as confidential. the Customer shall keep a record of what it disclosed and shall give that record to the disclosing party on request. the Customer shall not volunteer more information than the regulator asked for.
+
+15. No solicitation of the evaluation team
+
+During the discussions and for six months after they end, the Customer shall not solicit an employee of the other party who took part in the evaluation, if the Customer first learned of that employee through the discussions. This section does not stop a party from hiring a person who answers a public advertisement that was not aimed at that person. the Customer shall tell its staffing team about this limit so a routine search does not breach it.
+
+16. Public statements
+
+Neither party shall issue a press release about the discussions without the other's written consent. the Customer shall not mention the other party's name in a marketing document that describes the discussions. A party may make a disclosure that the securities laws require, and it shall, where the law allows, give the other party a chance to comment on the wording first. the Customer shall keep the fact of the discussions confidential to the same degree as the documents that were exchanged.
+
+17. Export and location of copies
+
+the Customer shall not export confidential information, or a copy of it, in violation of export control law. the Customer shall keep copies in the country where the Customer received them unless the disclosing party agrees in writing to another location. If the Customer uses a cloud service to store the copies, the Customer shall choose a service that lets the Customer meet this section, and the Customer shall remain responsible for the service's handling of the copies.
+
+18. Feedback
+
+If the Customer gives feedback about the other party's products, the other party may use that feedback without a duty to pay the Customer, and the Customer shall not assert an intellectual-property claim against that use. Feedback does not include the Customer's own confidential information, which stays protected. the Customer shall mark any material it does not intend as feedback, so the parties can tell the two apart.
+
+19. Independent development
+
+Each party may develop products that compete with the other's products, so long as it does not use the other's confidential information to do so. the Customer shall not argue that the mere receipt of confidential information stops the other party from working on a product the other party already had in mind. A party who wants to show that it developed something independently shall keep dated records of that work. the Customer shall keep its evaluation notes separate from its product-design files so those records stay clear.
+
+20. Counterparts and headings
+
+The parties may sign this agreement in counterparts, and electronic signatures count as original signatures. Headings are for convenience only and do not change the meaning of a section. the Customer shall not rely on a heading to narrow a duty that the section itself states more broadly. A signed copy delivered by email is effective when the other party receives that copy.
