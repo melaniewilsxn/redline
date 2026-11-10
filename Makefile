@@ -32,17 +32,20 @@ reseed:
 bench:
 	cd backend && uv run python -m scripts.benchmark
 
-ui-install:
-	cd frontend && npm install
+frontend/node_modules: frontend/package.json frontend/package-lock.json
+	cd frontend && npm ci
+	touch frontend/node_modules
 
-ui:
+ui-install: frontend/node_modules
+
+ui: frontend/node_modules
 	cd frontend && REDLINE_API_URL=http://localhost:$(PORT) npm run dev
 
-ui-test:
+ui-test: frontend/node_modules
 	cd frontend && npm test
 
-ui-lint:
+ui-lint: frontend/node_modules
 	cd frontend && npm run lint
 
-ui-types:
+ui-types: frontend/node_modules
 	cd frontend && REDLINE_API_URL=http://localhost:$(PORT) npm run generate:api-types
