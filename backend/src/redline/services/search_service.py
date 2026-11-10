@@ -3,7 +3,7 @@ import threading
 import time
 from enum import StrEnum
 
-from redline.editing.models import AppliedEdit
+from redline.editing.models import AppliedEdit, TextSpan
 from redline.search.index import (
     SearchIndex,
     create_search_index,
@@ -13,6 +13,7 @@ from redline.search.index import (
 from redline.search.models import SearchPage, SearchScope
 from redline.search.query_parser import parse_query
 from redline.search.query_runner import run_query
+from redline.search.retrieval import rank_chunks_for_instruction
 from redline.storage.models import StoredDocument
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,32 @@ class SearchService:
             f"over {scope_name}, {page.total_count} hits"
         )
         return page
+
+    def find_relevant_spans(
+        self, document: StoredDocument, instruction: str, limit: int
+    ) -> list[TextSpan]:
+        """Return paragraph spans for an instruction, refreshing a stale index entry first."""
+        logger.info(
+            f"Started choosing spans for document {document.id} version {document.version}, "
+            f"instruction length {len(instruction)}, limit {limit}"
+        )
+        with self.lock:
+            if (
+                document.id not in self.index.documents
+                or self.index.documents[document.id].version != document.version
+            ):
+                index_document(
+                    self.index, document.id, document.title, document.version, document.text
+                )
+            chunks = rank_chunks_for_instruction(
+                self.index.documents[document.id], instruction, limit
+            )
+        spans = [TextSpan(start=chunk.start, end=chunk.start + chunk.length) for chunk in chunks]
+        logger.info(
+            f"Finished choosing {len(spans)} spans for document {document.id} "
+            f"version {document.version}"
+        )
+        return spans
 
 
 def update_locked_document(

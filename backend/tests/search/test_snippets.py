@@ -26,6 +26,17 @@ def test_term_highlights_are_absolute_offsets() -> None:
     assert text[highlights[0].start : highlights[0].end] == "alpha"
 
 
+def test_chunk_missing_a_phrase_term_has_no_phrase_spans() -> None:
+    """A phrase is absent when the chunk is missing one of its words."""
+    text = "Please send written today."
+    chunk = index_one(text).chunks[0]
+    phrase = SearchPhrase(terms=["written", "notice"])
+
+    spans = find_phrase_spans(chunk, phrase)
+
+    assert spans == []
+
+
 def test_phrase_highlight_spans_the_whole_phrase() -> None:
     """A phrase highlight runs from the first word to the last."""
     text = "Please send written notice today."

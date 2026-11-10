@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 DATABASE_URL_VARIABLE = "DATABASE_URL"
 LOG_LEVEL_VARIABLE = "LOG_LEVEL"
+ANTHROPIC_API_KEY_VARIABLE = "ANTHROPIC_API_KEY"
 
 
 @dataclass(frozen=True)
@@ -11,6 +12,7 @@ class Settings:
 
     database_url: str
     log_level: str
+    anthropic_api_key: str | None
 
 
 def read_environment_variable(name: str) -> str:
@@ -20,9 +22,17 @@ def read_environment_variable(name: str) -> str:
     return os.environ[name]
 
 
+def read_optional_environment_variable(name: str) -> str | None:
+    """Return one environment variable, or None when it is missing or empty."""
+    if name not in os.environ or os.environ[name] == "":
+        return None
+    return os.environ[name]
+
+
 def load_settings() -> Settings:
-    """Read settings from the environment, failing when one is missing."""
+    """Read settings from the environment, failing when a required one is missing."""
     return Settings(
         database_url=read_environment_variable(DATABASE_URL_VARIABLE),
         log_level=read_environment_variable(LOG_LEVEL_VARIABLE),
+        anthropic_api_key=read_optional_environment_variable(ANTHROPIC_API_KEY_VARIABLE),
     )

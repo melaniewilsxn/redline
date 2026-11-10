@@ -1,15 +1,19 @@
 import os
 from collections.abc import Iterator
+from uuid import UUID
 
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from psycopg import Connection
 
-from redline.api.dependencies import get_connection
+from redline.api.dependencies import get_connection, get_document_reader
 from redline.config import Settings
 from redline.main import create_app
+from redline.services.ai_redline_service import DocumentReader
 from redline.storage.database import apply_schema
+from redline.storage.document_repository import get_document
+from redline.storage.models import StoredDocument
 
 TEST_DATABASE_URL_VARIABLE = "TEST_DATABASE_URL"
 TEST_LOG_LEVEL = "WARNING"
@@ -26,7 +30,11 @@ def test_database_url() -> str:
 @pytest.fixture(scope="session")
 def test_settings(test_database_url: str) -> Settings:
     """Settings that point the app at the test database."""
-    return Settings(database_url=test_database_url, log_level=TEST_LOG_LEVEL)
+    return Settings(
+        database_url=test_database_url,
+        log_level=TEST_LOG_LEVEL,
+        anthropic_api_key=None,
+    )
 
 
 @pytest.fixture(scope="session")
@@ -54,7 +62,16 @@ def client(connection: Connection, test_settings: Settings) -> Iterator[TestClie
         """Yield the rolled-back test connection."""
         yield connection
 
+    def read_test_document(document_id: UUID) -> StoredDocument:
+        """Read through the rolled-back test connection."""
+        return get_document(connection, document_id)
+
+    def override_document_reader() -> DocumentReader:
+        """Return the rolled-back document reader."""
+        return read_test_document
+
     app = create_app(test_settings)
     app.dependency_overrides[get_connection] = yield_test_connection
+    app.dependency_overrides[get_document_reader] = override_document_reader
     with TestClient(app, raise_server_exceptions=False) as test_client:
         yield test_client

@@ -83,7 +83,7 @@ curl -sS --get http://localhost:8000/search \
 curl -sS "http://localhost:8000/documents/DOCUMENT_ID/search?q=Customer"
 ```
 
-`samples/curl_requests.sh` walks through create, all three target types, a mixed batch, a stale `If-Match` (412), a missing `If-Match` (428), an overlap (422), missing text (422), an unknown id (404), version history, and search. A query with no words, such as `q=""`, returns 422 `invalid_query`.
+`samples/curl_requests.sh` walks through create, all three target types, a mixed batch, a stale `If-Match` (412), a missing `If-Match` (428), an overlap (422), missing text (422), an unknown id (404), version history, and search. A query with no words, such as `q=""`, returns 422 `invalid_query`. The last step asks for redlines on the seeded master services agreement and applies the ones that anchored. If no API key is set, that step prints `ai_not_configured` and skips the apply.
 
 ## API design
 
@@ -118,8 +118,21 @@ Every error body is JSON:
 | 404 | `version_not_found` | That document has no such version |
 | 412 | `precondition_failed` | `If-Match` is stale or not one of our ETags |
 | 428 | `precondition_required` | `If-Match` was omitted |
+| 503 | `ai_not_configured` | No Anthropic API key is set |
+| 502 | `model_unavailable` | The model call failed |
+| 502 | `model_response_invalid` | The model response was truncated, refused, or not the expected JSON |
 | 404, 405, others | `http_error` | The path or method does not exist |
 | 500 | `internal_error` | Anything else. The message is always "Internal server error" |
+
+## AI redline suggestions
+
+`POST /documents/{id}/ai-redlines` takes an instruction and returns suggestions for the current version, plus an ETag for that version. The model is Claude Sonnet. Its reply is constrained to a JSON schema: a list of quotes, each with the surrounding words, a replacement, and a short rationale. The contract is sent as data. Instructions inside the contract are not followed.
+
+A document of 100,000 characters or less is sent whole. A longer one sends the paragraphs that best match the instruction. Either way, each quote is checked against the full document. A quote with the right surrounding words is pinned to that span. If those words miss but the quote appears once, it is pinned anyway. A quote that is empty, unchanged, missing, ambiguous, or overlapping an earlier suggestion is returned in `dropped` with a reason, and it is not applied.
+
+Accepting the suggestions is the same `PATCH` as any other edit: one range target per anchored suggestion, and `If-Match` set to the ETag from the suggestion response. If the document changed in between, the patch returns 412.
+
+Set `ANTHROPIC_API_KEY` in `.env`. Without it the route returns 503 `ai_not_configured`. A failed call returns 502 `model_unavailable`. A truncated, refused, or unusable reply returns 502 `model_response_invalid`.
 
 ## Search design
 
@@ -145,21 +158,21 @@ On this machine, a pytest run measured two 10MB cases. Applying 1,000 range chan
 
 | Case | Indexed ms | Naive ms | Speedup |
 | --- | ---: | ---: | ---: |
-| Build 10MB index | 2787 | - | - |
-| Rare phrase "Schedule 44204 to the Customer" | 248 | 55.4 | 0.2x |
-| Common word customer | 0.008 | 50.0 | 6355.1x |
-| Common phrase "written notice" | 92.3 | 31.4 | 0.3x |
-| Two words supplier rejected | 0.001 | 116 | 99585.0x |
-| Update after 1 edit | 79.9 | 2435 | 30.5x |
-| Update after 100 spread edits | 284 | 2880 | 10.1x |
-| Apply 1,000 range changes | 1.4 | - | - |
-| Cross-document escrow phrase | 0.617 | 92.3 | 149.6x |
+| Build 10MB index | 2838 | - | - |
+| Rare phrase "Schedule 44204 to the Customer" | 33.1 | 54.9 | 1.7x |
+| Common word customer | 0.008 | 49.9 | 6408.0x |
+| Common phrase "written notice" | 47.2 | 31.4 | 0.7x |
+| Two words supplier reject | 0.009 | 119 | 13611.5x |
+| Update after 1 edit | 84.4 | 2466 | 29.2x |
+| Update after 100 spread edits | 276 | 2853 | 10.3x |
+| Apply 1,000 range changes | 1.6 | - | - |
+| Cross-document escrow phrase | 0.638 | 89.6 | 140.5x |
 
-An incremental update beats re-indexing the whole 10MB text, about 30 times for one edit and about 10 times for 100 edits spread through the document. The cross-document query is about 150 times faster than scanning all 20 texts, because the other 19 documents do not contain the words and are never opened.
+An incremental update beats re-indexing the whole 10MB text, about 29 times for one edit and about 10 times for 100 edits spread through the document. The cross-document query is about 140 times faster than scanning all 20 texts, because the other 19 documents do not contain the words and are never opened.
 
 A common word, or two common words, returns in well under a millisecond. The occurrence count is already stored on the document, and the snippet stops after the first three matching paragraphs. The regex scan still reads the whole file.
 
-A phrase is the slow case on a single document. "written notice" sits in every section, and the rare schedule phrase sits near the end, so counting phrase matches walks the paragraphs in Python. One regex pass over the characters is faster there (0.3x and 0.2x). A map from a term to the paragraphs that contain it would skip that walk. That is a planned next step, not a property of this index.
+A rare phrase beats the scan. The section number is missing from almost every paragraph, so those paragraphs are rejected with a dictionary check and no position map is built. "written notice" does not. Both words are in every paragraph of this contract, so no index can skip a paragraph, and counting every match is a Python loop per paragraph against one regex pass in C (0.7x).
 
 Routes are synchronous. psycopg is synchronous, and FastAPI runs sync routes in a thread pool, so the server does not mix async and blocking database calls.
 
@@ -179,7 +192,6 @@ Routes are synchronous. psycopg is synchronous, and FastAPI runs sync routes in 
 - Embedding-based semantic search with hybrid re-ranking.
 - Proposals, moving them forward when an edit lands, and accept and reject.
 - Comparing two versions.
-- AI redline suggestions.
 - Multi-pattern target resolution (Aho–Corasick) for very large batches of text-targeted changes.
 - Multi-process deployment. A later in-process search index assumes a single server.
 - Storing versions as deltas instead of full copies.

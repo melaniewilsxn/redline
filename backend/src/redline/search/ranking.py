@@ -23,17 +23,33 @@ def score_bm25(index: SearchIndex, document: IndexedDocument, terms: list[str]) 
             containing_document_count = len(index.term_documents[term])
         else:
             containing_document_count = 0
-        inverse_document_frequency = math.log(
-            1
-            + (document_count - containing_document_count + 0.5) / (containing_document_count + 0.5)
-        )
         if term in document.term_counts:  # noqa: SIM108
             term_frequency = document.term_counts[term]
         else:
             term_frequency = 0
-        numerator = inverse_document_frequency * term_frequency * (BM25_K1 + 1)
-        denominator = term_frequency + BM25_K1 * (
-            1 - BM25_B + BM25_B * document_length / average_document_length
+        score += score_term(
+            term_frequency,
+            containing_document_count,
+            document_count,
+            document_length,
+            average_document_length,
         )
-        score += numerator / denominator
     return score
+
+
+def score_term(
+    term_frequency: int,
+    containing_count: int,
+    collection_count: int,
+    length: int,
+    average_length: float,
+) -> float:
+    """Return one term's BM25 weight. A missing term or an empty collection adds nothing."""
+    if average_length == 0:
+        return 0.0
+    inverse_document_frequency = math.log(
+        1 + (collection_count - containing_count + 0.5) / (containing_count + 0.5)
+    )
+    numerator = inverse_document_frequency * term_frequency * (BM25_K1 + 1)
+    denominator = term_frequency + BM25_K1 * (1 - BM25_B + BM25_B * length / average_length)
+    return numerator / denominator

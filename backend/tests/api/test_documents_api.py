@@ -45,14 +45,6 @@ def patch_document(
     )
 
 
-def range_change(start: int, end: int, replacement: str) -> ChangeRequest:
-    """Build a range change request."""
-    return ChangeRequest(
-        target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=start, end=end),
-        replacement=replacement,
-    )
-
-
 def test_create_document_returns_201_with_etag_and_location(client: TestClient) -> None:
     """Creating a document returns 201, an ETag, and a Location header."""
     response = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR)
@@ -134,7 +126,12 @@ def test_patch_with_range_target_returns_updated_text_and_new_etag(client: TestC
         client,
         created["id"],
         etag,
-        [range_change(0, 4, "XYZ")],
+        [
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=0, end=4),
+                replacement="XYZ",
+            )
+        ],
         DOCUMENT_AUTHOR,
     )
 
@@ -209,8 +206,14 @@ def test_patch_batch_reports_applied_edits_in_pre_batch_offsets(client: TestClie
         created["id"],
         f'"{created["id"]}-1"',
         [
-            range_change(6, 8, "XY"),
-            range_change(1, 3, "Q"),
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=6, end=8),
+                replacement="XY",
+            ),
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=1, end=3),
+                replacement="Q",
+            ),
         ],
         DOCUMENT_AUTHOR,
     )
@@ -229,7 +232,15 @@ def test_patch_without_if_match_returns_428(client: TestClient) -> None:
     """A patch with no If-Match header returns 428."""
     created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
-    request = ApplyChangesRequest(author=DOCUMENT_AUTHOR, changes=[range_change(0, 1, "J")])
+    request = ApplyChangesRequest(
+        author=DOCUMENT_AUTHOR,
+        changes=[
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=0, end=1),
+                replacement="J",
+            )
+        ],
+    )
     response = client.patch(f"/documents/{created['id']}", json=asdict(request))
 
     assert response.status_code == HTTPStatus.PRECONDITION_REQUIRED
@@ -245,7 +256,12 @@ def test_patch_with_stale_if_match_returns_412(client: TestClient) -> None:
         client,
         created["id"],
         f'"{created["id"]}-9"',
-        [range_change(0, 1, "J")],
+        [
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=0, end=1),
+                replacement="J",
+            )
+        ],
         DOCUMENT_AUTHOR,
     )
 
@@ -262,7 +278,12 @@ def test_patch_with_other_documents_etag_returns_412(client: TestClient) -> None
         client,
         second["id"],
         f'"{first["id"]}-1"',
-        [range_change(0, 1, "J")],
+        [
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=0, end=1),
+                replacement="J",
+            )
+        ],
         DOCUMENT_AUTHOR,
     )
 
@@ -274,7 +295,12 @@ def test_second_patch_with_same_if_match_returns_412(client: TestClient) -> None
     """Reusing an ETag after a successful write returns 412."""
     created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
     etag = f'"{created["id"]}-1"'
-    change = [range_change(0, 1, "J")]
+    change = [
+        ChangeRequest(
+            target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=0, end=1),
+            replacement="J",
+        )
+    ]
     first = patch_document(client, created["id"], etag, change, DOCUMENT_AUTHOR)
 
     second = patch_document(client, created["id"], etag, change, DOCUMENT_AUTHOR)
@@ -293,8 +319,14 @@ def test_patch_with_overlapping_changes_returns_422_overlapping_changes(client: 
         created["id"],
         f'"{created["id"]}-1"',
         [
-            range_change(0, 4, "A"),
-            range_change(2, 6, "B"),
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=0, end=4),
+                replacement="A",
+            ),
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=2, end=6),
+                replacement="B",
+            ),
         ],
         DOCUMENT_AUTHOR,
     )
@@ -358,7 +390,12 @@ def test_patch_with_invalid_range_returns_422_invalid_target(client: TestClient)
         client,
         created["id"],
         f'"{created["id"]}-1"',
-        [range_change(4, 1, "x")],
+        [
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=4, end=1),
+                replacement="x",
+            )
+        ],
         DOCUMENT_AUTHOR,
     )
 
@@ -374,7 +411,12 @@ def test_patch_with_range_past_end_returns_422_range_out_of_bounds(client: TestC
         client,
         created["id"],
         f'"{created["id"]}-1"',
-        [range_change(0, 100, "x")],
+        [
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=0, end=100),
+                replacement="x",
+            )
+        ],
         DOCUMENT_AUTHOR,
     )
 
@@ -419,7 +461,12 @@ def test_patch_missing_document_returns_404(client: TestClient) -> None:
         client,
         str(document_id),
         f'"{document_id}-1"',
-        [range_change(0, 1, "J")],
+        [
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=0, end=1),
+                replacement="J",
+            )
+        ],
         DOCUMENT_AUTHOR,
     )
 
@@ -434,7 +481,12 @@ def test_list_versions_after_patch_shows_both_versions(client: TestClient) -> No
         client,
         created["id"],
         f'"{created["id"]}-1"',
-        [range_change(0, 1, "J")],
+        [
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=0, end=1),
+                replacement="J",
+            )
+        ],
         DOCUMENT_AUTHOR,
     )
 
@@ -451,7 +503,12 @@ def test_get_version_one_after_patch_returns_original_text(client: TestClient) -
         client,
         created["id"],
         f'"{created["id"]}-1"',
-        [range_change(0, 1, "J")],
+        [
+            ChangeRequest(
+                target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=0, end=1),
+                replacement="J",
+            )
+        ],
         DOCUMENT_AUTHOR,
     )
 

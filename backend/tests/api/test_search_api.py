@@ -153,9 +153,7 @@ def test_limit_above_maximum_returns_validation_error(client: TestClient) -> Non
 
 def test_page_past_end_keeps_total_count(client: TestClient) -> None:
     """A page past the end is empty, and total_count still counts the match."""
-    created = post_document(
-        client, DOCUMENT_TITLE, "uniquevioletword appears once", DOCUMENT_AUTHOR
-    )
+    post_document(client, DOCUMENT_TITLE, "uniquevioletword appears once", DOCUMENT_AUTHOR)
 
     response = client.get("/search", params={"q": "uniquevioletword", "offset": 50})
 
@@ -163,7 +161,6 @@ def test_page_past_end_keeps_total_count(client: TestClient) -> None:
     body = response.json()
     assert body["hits"] == []
     assert body["total_count"] == 1
-    assert created.document_id
 
 
 def test_highlight_offsets_point_at_the_matched_text(client: TestClient) -> None:

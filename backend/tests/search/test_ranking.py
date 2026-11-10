@@ -58,3 +58,35 @@ def test_longer_document_scores_lower_for_same_count() -> None:
     long_score = score_bm25(index, index.documents[LONG_DOCUMENT_ID], ["alpha"])
 
     assert short_score > long_score
+
+
+def test_term_in_no_document_adds_nothing() -> None:
+    """A term that no document contains adds nothing to the score."""
+    index = create_search_index()
+    index_document(index, RARE_DOCUMENT_ID, TITLE, VERSION, "alpha beta")
+
+    with_known_term = score_bm25(index, index.documents[RARE_DOCUMENT_ID], ["alpha"])
+    with_unknown_term = score_bm25(index, index.documents[RARE_DOCUMENT_ID], ["alpha", "missing"])
+
+    assert with_unknown_term == with_known_term
+
+
+def test_score_is_zero_when_average_length_is_zero() -> None:
+    """A document with no tokens scores zero."""
+    index = create_search_index()
+    index_document(index, RARE_DOCUMENT_ID, TITLE, VERSION, "...")
+
+    score = score_bm25(index, index.documents[RARE_DOCUMENT_ID], ["alpha"])
+
+    assert score == 0
+
+
+def test_document_without_query_terms_scores_zero() -> None:
+    """A document that contains none of the query terms scores zero."""
+    index = create_search_index()
+    index_document(index, RARE_DOCUMENT_ID, TITLE, VERSION, "alpha beta")
+    index_document(index, COMMON_DOCUMENT_ID, TITLE, VERSION, "gamma delta")
+
+    score = score_bm25(index, index.documents[COMMON_DOCUMENT_ID], ["alpha"])
+
+    assert score == 0

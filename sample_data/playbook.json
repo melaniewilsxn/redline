@@ -1,0 +1,41 @@
+{
+  "represented_party": "Customer",
+  "positions": [
+    {
+      "topic": "Indemnification",
+      "preferred_position": "mutual indemnities for third-party claims",
+      "acceptable_fallbacks": ["mutual, capped at the liability cap"],
+      "never_accept": ["a one-way indemnity from the Customer"]
+    },
+    {
+      "topic": "Limitation of liability",
+      "preferred_position": "cap at 12 months' fees, both parties",
+      "acceptable_fallbacks": ["cap at 24 months' fees"],
+      "never_accept": ["uncapped liability for the Customer"]
+    },
+    {
+      "topic": "Governing law",
+      "preferred_position": "Delaware or New York",
+      "acceptable_fallbacks": ["any US state with a neutral forum"],
+      "never_accept": ["a non-US governing law"]
+    },
+    {
+      "topic": "Termination for convenience",
+      "preferred_position": "either party, 30 days' notice",
+      "acceptable_fallbacks": ["either party, 60 days' notice"],
+      "never_accept": ["only the Company may terminate for convenience"]
+    },
+    {
+      "topic": "Assignment",
+      "preferred_position": "no assignment without consent, except to a successor in a merger with notice",
+      "acceptable_fallbacks": ["consent not unreasonably withheld"],
+      "never_accept": ["free assignment by the Company to anyone"]
+    },
+    {
+      "topic": "Confidentiality term",
+      "preferred_position": "3 years after termination; trade secrets while they stay secret",
+      "acceptable_fallbacks": ["2 years after termination"],
+      "never_accept": ["no time limit on the Customer's obligations only"]
+    }
+  ]
+}

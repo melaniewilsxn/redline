@@ -30,18 +30,18 @@ def find_phrase_spans(chunk: IndexedChunk, phrase: SearchPhrase) -> list[TextSpa
     """Return absolute spans of this phrase where its words sit in consecutive positions."""
     if not phrase.terms:
         return []
-    first_term = phrase.terms[0]
-    if first_term not in chunk.term_occurrences:
-        return []
+    for term in phrase.terms:
+        if term not in chunk.term_occurrences:
+            return []
     position_terms: dict[int, str] = {}
     position_spans: dict[int, TextSpan] = {}
-    for term, occurrences in chunk.term_occurrences.items():
-        for occurrence in occurrences:
+    for term in phrase.terms:
+        for occurrence in chunk.term_occurrences[term]:
             position_terms[occurrence.position] = term
             position_spans[occurrence.position] = occurrence.span
     spans: list[TextSpan] = []
     phrase_length = len(phrase.terms)
-    for occurrence in chunk.term_occurrences[first_term]:
+    for occurrence in chunk.term_occurrences[phrase.terms[0]]:
         start_position = occurrence.position
         if not phrase_starts_at(position_terms, phrase, start_position):
             continue

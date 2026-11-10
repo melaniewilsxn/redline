@@ -7,7 +7,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from redline.ai.model_client import build_model_client
+from redline.ai.playbook import PLAYBOOK_PATH, load_playbook
 from redline.api.error_handlers import register_error_handlers
+from redline.api.routes.ai_redlines import router as ai_redlines_router
 from redline.api.routes.documents import router as documents_router
 from redline.api.routes.health import router as health_router
 from redline.api.routes.search import router as search_router
@@ -67,6 +70,12 @@ def create_app(settings: Settings) -> FastAPI:
             elapsed = time.perf_counter() - started
             app.state.connection_pool = pool
             app.state.search_service = search_service
+            app.state.playbook = load_playbook(PLAYBOOK_PATH)
+            app.state.model_client = build_model_client(settings)
+            if settings.anthropic_api_key is None:
+                logger.info("AI redlines are not configured")
+            else:
+                logger.info("AI redlines are configured")
             logger.info(f"Indexed {len(documents)} documents in {elapsed:.3f} seconds")
             logger.info("Started the server")
             yield
@@ -79,6 +88,7 @@ def create_app(settings: Settings) -> FastAPI:
     register_error_handlers(app)
     app.include_router(documents_router)
     app.include_router(search_router)
+    app.include_router(ai_redlines_router)
     app.include_router(health_router)
     return app
 

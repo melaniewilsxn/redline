@@ -66,7 +66,7 @@ def index_document(
     index: SearchIndex, document_id: UUID, title: str, version: int, text: str
 ) -> None:
     """Chunk and index the whole text, replacing any earlier entry for this document."""
-    chunks = index_chunks(text, split_into_chunks(text, 0))
+    chunks = [index_chunk(text, span) for span in split_into_chunks(text, 0)]
     term_counts, token_count = count_terms(chunks)
     replacement = IndexedDocument(
         document_id=document_id,
@@ -97,7 +97,7 @@ def update_indexed_document(
     if previous.chunks:
         chunks = rebuild_changed_chunks(previous, text, applied_edits)
     else:
-        chunks = index_chunks(text, split_into_chunks(text, 0))
+        chunks = [index_chunk(text, span) for span in split_into_chunks(text, 0)]
     term_counts, token_count = count_terms(chunks)
     replacement = IndexedDocument(
         document_id=document_id,
@@ -130,11 +130,6 @@ def add_document_terms(index: SearchIndex, document: IndexedDocument) -> None:
         if term not in index.term_documents:
             index.term_documents[term] = set()
         index.term_documents[term].add(document.document_id)
-
-
-def index_chunks(text: str, spans: list[TextSpan]) -> list[IndexedChunk]:
-    """Index each span of text."""
-    return [index_chunk(text, span) for span in spans]
 
 
 def count_terms(chunks: list[IndexedChunk]) -> tuple[dict[str, int], int]:
@@ -170,7 +165,7 @@ def rebuild_changed_chunks(
             new_start = run_start + shift
             new_end = run_end + shift + run_change
             region = text[new_start:new_end]
-            chunks.extend(index_chunks(text, split_into_chunks(region, new_start)))
+            chunks.extend(index_chunk(text, span) for span in split_into_chunks(region, new_start))
             shift += run_change
             chunk_index = run.last_index + 1
             run_number += 1

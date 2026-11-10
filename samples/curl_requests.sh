@@ -198,4 +198,75 @@ call_api "17. Query with no words" 422 \
 require_error_type "invalid_query"
 
 echo
+echo "== 18. Suggest redlines for the seeded MSA =="
+status=$(curl -sS -D "$workdir/headers" -o "$workdir/body" -w "%{http_code}" \
+  "$BASE_URL/documents?limit=100")
+echo "status $status"
+show_body
+if [[ "$status" != "200" ]]; then
+  echo "expected status 200" >&2
+  exit 1
+fi
+msa_id=$(python3 - "$workdir/body" <<'PY'
+import json
+import sys
+
+body = json.load(open(sys.argv[1]))
+for document in body["documents"]:
+    if document["title"] == "master services agreement":
+        print(document["id"])
+        break
+else:
+    raise SystemExit("seeded master services agreement was not found")
+PY
+)
+status=$(curl -sS -D "$workdir/headers" -o "$workdir/body" -w "%{http_code}" \
+  -X POST "$BASE_URL/documents/$msa_id/ai-redlines" \
+  -H "Content-Type: application/json" \
+  --data-binary '{"instruction":"Make the indemnification mutual"}')
+echo "status $status"
+show_body
+if [[ "$status" == "503" ]]; then
+  require_error_type "ai_not_configured"
+  echo "AI redlines are not configured; skipping apply"
+elif [[ "$status" == "200" ]]; then
+  python3 - "$workdir/body" "$workdir/apply.json" <<'PY'
+import json
+import sys
+
+body = json.load(open(sys.argv[1]))
+print(f"suggestions {len(body['suggestions'])}")
+print(f"dropped {len(body['dropped'])}")
+changes = []
+for suggestion in body["suggestions"]:
+    print(f"{suggestion['original_text']} -> {suggestion['replacement']}")
+    changes.append(
+        {
+            "target": {
+                "type": "range",
+                "start": suggestion["start"],
+                "end": suggestion["end"],
+            },
+            "replacement": suggestion["replacement"],
+        }
+    )
+if changes:
+    json.dump({"author": "Ada", "changes": changes}, open(sys.argv[2], "w"))
+PY
+  if [[ -f "$workdir/apply.json" ]]; then
+    suggestion_etag=$(header_value "etag")
+    call_api "18b. Apply the suggestions" 200 \
+      -X PATCH "$BASE_URL/documents/$msa_id" \
+      -H "Content-Type: application/json" \
+      -H "If-Match: $suggestion_etag" \
+      --data-binary @"$workdir/apply.json"
+  else
+    echo "No anchored suggestions to apply"
+  fi
+else
+  echo "expected status 200 or 503" >&2
+  exit 1
+fi
+
+echo
 echo "Curl walkthrough finished."

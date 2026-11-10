@@ -144,6 +144,51 @@ def test_add_document_failure_does_not_raise(monkeypatch: pytest.MonkeyPatch) ->
     assert page.hits == []
 
 
+def test_stale_indexed_version_is_refreshed_before_choosing_spans() -> None:
+    """A newer document version is indexed before its spans are chosen."""
+    service = SearchService()
+    document = stored("Hello alpha")
+    service.add_document(document)
+    updated = replace_text(document, "Hello indemnity beta", NEXT_VERSION)
+
+    spans = service.find_relevant_spans(updated, "indemnity", 3)
+
+    assert service.index.documents[document.id].version == NEXT_VERSION
+    assert service.index.documents[document.id].text == updated.text
+    assert "indemnity" in updated.text[spans[0].start : spans[0].end]
+
+
+def test_document_missing_from_index_is_indexed_before_choosing_spans() -> None:
+    """A document that was never indexed is indexed before its spans are chosen."""
+    service = SearchService()
+    document = stored("Hello indemnity")
+
+    spans = service.find_relevant_spans(document, "indemnity", 3)
+
+    assert service.index.documents[document.id].version == VERSION
+    assert service.index.documents[document.id].text == document.text
+    assert spans
+
+
+def test_current_indexed_version_is_kept(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A document already indexed at this version is not indexed again."""
+    service = SearchService()
+    document = stored("Hello indemnity")
+    service.add_document(document)
+    calls: list[str] = []
+
+    def record_index(*args: object) -> None:
+        """Record an index call."""
+        calls.append("indexed")
+
+    monkeypatch.setattr("redline.services.search_service.index_document", record_index)
+
+    spans = service.find_relevant_spans(document, "indemnity", 3)
+
+    assert calls == []
+    assert spans
+
+
 def stored(text: str) -> StoredDocument:
     """Build one stored document."""
     return StoredDocument(

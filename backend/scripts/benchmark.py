@@ -45,12 +45,23 @@ MISSING_BASELINE = "-"
 
 
 @dataclass(frozen=True)
-class BenchmarkRow:
-    """One timed case."""
+class ComparedBenchmarkRow:
+    """A case timed against a plain scan."""
 
     case: str
     indexed_milliseconds: float
-    naive_milliseconds: float | None
+    naive_milliseconds: float
+
+
+@dataclass(frozen=True)
+class IndexedOnlyBenchmarkRow:
+    """A case with no plain-scan comparison."""
+
+    case: str
+    milliseconds: float
+
+
+BenchmarkRow = ComparedBenchmarkRow | IndexedOnlyBenchmarkRow
 
 
 def main() -> None:
@@ -87,9 +98,9 @@ def run_benchmark() -> list[BenchmarkRow]:
     spread_changes = build_spread_changes(len(contract))
     spread = apply_changes(contract, spread_changes[:SPREAD_EDIT_COUNT])
     supplier_pattern = re.compile(r"\bsupplier\b", re.IGNORECASE)
-    rejected_pattern = re.compile(r"\brejected\b", re.IGNORECASE)
+    reject_pattern = re.compile(r"\breject\b", re.IGNORECASE)
     return [
-        BenchmarkRow("Build 10MB index", measure_index(document_id, contract), None),
+        IndexedOnlyBenchmarkRow("Build 10MB index", measure_index(document_id, contract)),
         query_row(
             indexed,
             contract,
@@ -111,25 +122,24 @@ def run_benchmark() -> list[BenchmarkRow]:
             '"written notice"',
             re.compile(re.escape("written notice"), re.IGNORECASE),
         ),
-        BenchmarkRow(
-            "Two words supplier rejected",
-            measure_query(indexed, parse_query("supplier rejected")),
-            measure(lambda: scan_both(supplier_pattern, rejected_pattern, contract)),
+        ComparedBenchmarkRow(
+            "Two words supplier reject",
+            measure_query(indexed, parse_query("supplier reject")),
+            measure(lambda: scan_both(supplier_pattern, reject_pattern, contract)),
         ),
-        BenchmarkRow(
+        ComparedBenchmarkRow(
             "Update after 1 edit",
             measure_update(document_id, contract, one_edit.text, one_edit.applied_edits),
             measure_index(document_id, one_edit.text),
         ),
-        BenchmarkRow(
+        ComparedBenchmarkRow(
             "Update after 100 spread edits",
             measure_update(document_id, contract, spread.text, spread.applied_edits),
             measure_index(document_id, spread.text),
         ),
-        BenchmarkRow(
+        IndexedOnlyBenchmarkRow(
             "Apply 1,000 range changes",
             measure(lambda: apply_changes(contract, spread_changes)),
-            None,
         ),
         cross_document_row(),
     ]
@@ -144,7 +154,7 @@ def query_row(
 ) -> BenchmarkRow:
     """Time one query against a case-insensitive scan of the same text."""
     query = parse_query(query_text)
-    return BenchmarkRow(
+    return ComparedBenchmarkRow(
         case,
         measure_query(index, query),
         measure(lambda: count_matches(pattern, text)),
@@ -164,7 +174,7 @@ def cross_document_row() -> BenchmarkRow:
     query = parse_query('"escrow agent" holdback')
     phrase = re.compile(re.escape("escrow agent"), re.IGNORECASE)
     word = re.compile(r"\bholdback\b", re.IGNORECASE)
-    return BenchmarkRow(
+    return ComparedBenchmarkRow(
         "Cross-document escrow phrase",
         measure_query(index, query),
         measure(lambda: scan_documents(texts, phrase, word)),
@@ -221,9 +231,9 @@ def count_matches(pattern: re.Pattern[str], text: str) -> int:
     return sum(1 for _match in pattern.finditer(text))
 
 
-def scan_both(supplier: re.Pattern[str], rejected: re.Pattern[str], text: str) -> int:
+def scan_both(supplier: re.Pattern[str], reject: re.Pattern[str], text: str) -> int:
     """Count matches of both words with two scans."""
-    return count_matches(supplier, text) + count_matches(rejected, text)
+    return count_matches(supplier, text) + count_matches(reject, text)
 
 
 def scan_documents(texts: list[str], phrase: re.Pattern[str], word: re.Pattern[str]) -> int:
@@ -249,19 +259,27 @@ def print_table(rows: list[BenchmarkRow]) -> None:
     print("| Case | Indexed ms | Naive ms | Speedup |")
     print("| --- | ---: | ---: | ---: |")
     for row in rows:
-        if row.naive_milliseconds is None:
-            naive = MISSING_BASELINE
-            speedup = MISSING_BASELINE
-        elif row.indexed_milliseconds == 0:
-            naive = format_milliseconds(row.naive_milliseconds)
-            speedup = MISSING_BASELINE
-        else:
-            naive = format_milliseconds(row.naive_milliseconds)
-            speedup = f"{row.naive_milliseconds / row.indexed_milliseconds:.1f}x"
-        print(
-            f"| {row.case} | {format_milliseconds(row.indexed_milliseconds)} "
-            f"| {naive} | {speedup} |"
-        )
+        match row:
+            case IndexedOnlyBenchmarkRow(case=case, milliseconds=milliseconds):
+                indexed = format_milliseconds(milliseconds)
+                naive = MISSING_BASELINE
+                speedup = MISSING_BASELINE
+            case ComparedBenchmarkRow(
+                case=case,
+                indexed_milliseconds=indexed_milliseconds,
+                naive_milliseconds=naive_milliseconds,
+            ):
+                indexed = format_milliseconds(indexed_milliseconds)
+                naive = format_milliseconds(naive_milliseconds)
+                if indexed_milliseconds == 0:
+                    speedup = MISSING_BASELINE
+                else:
+                    speedup = f"{naive_milliseconds / indexed_milliseconds:.1f}x"
+            case _:
+                row_name = type(row).__name__
+                logger.error(f"Unknown benchmark row {row_name}")
+                raise RuntimeError(f"Unknown benchmark row {row_name}")
+        print(f"| {case} | {indexed} | {naive} | {speedup} |")
 
 
 if __name__ == "__main__":

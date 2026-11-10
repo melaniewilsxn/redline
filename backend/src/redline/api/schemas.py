@@ -7,6 +7,7 @@ from uuid import UUID
 
 from pydantic import Field
 
+from redline.ai.models import DroppedSuggestionReason
 from redline.editing.errors import InvalidTargetError, InvalidTargetReason
 from redline.editing.models import Change, ContextTarget, OccurrenceTarget, RangeTarget
 
@@ -32,6 +33,9 @@ class ErrorType(StrEnum):
     VERSION_NOT_FOUND = "version_not_found"
     PRECONDITION_FAILED = "precondition_failed"
     PRECONDITION_REQUIRED = "precondition_required"
+    AI_NOT_CONFIGURED = "ai_not_configured"
+    MODEL_UNAVAILABLE = "model_unavailable"
+    MODEL_RESPONSE_INVALID = "model_response_invalid"
     HTTP_ERROR = "http_error"
     INTERNAL_ERROR = "internal_error"
 
@@ -214,6 +218,46 @@ class SearchResponse:
     total_count: int
     limit: int
     offset: int
+
+
+@dataclass
+class AiRedlineRequest:
+    """An instruction for suggested redlines."""
+
+    instruction: Annotated[str, Field(min_length=1, max_length=2000)]
+
+
+@dataclass
+class SuggestionResponse:
+    """One suggestion pinned to the document version it was computed on."""
+
+    suggestion_id: str
+    start: int
+    end: int
+    original_text: str
+    replacement: str
+    rationale: str
+
+
+@dataclass
+class DroppedSuggestionResponse:
+    """One suggestion that could not be pinned, and why."""
+
+    suggestion_id: str
+    text: str
+    replacement: str
+    rationale: str
+    reason: DroppedSuggestionReason
+
+
+@dataclass
+class AiRedlineResponse:
+    """Anchored and dropped suggestions for one document version."""
+
+    document_id: UUID
+    version: int
+    suggestions: list[SuggestionResponse]
+    dropped: list[DroppedSuggestionResponse]
 
 
 @dataclass

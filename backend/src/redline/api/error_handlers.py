@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
+from redline.ai.errors import AiNotConfiguredError, ModelResponseError, ModelUnavailableError
 from redline.api.etags import PreconditionFailedError, PreconditionRequiredError
 from redline.api.schemas import (
     ErrorResponse,
@@ -75,6 +76,9 @@ KNOWN_ERRORS = (
         HTTPStatus.PRECONDITION_REQUIRED,
         ErrorType.PRECONDITION_REQUIRED,
     ),
+    KnownError(AiNotConfiguredError, HTTPStatus.SERVICE_UNAVAILABLE, ErrorType.AI_NOT_CONFIGURED),
+    KnownError(ModelUnavailableError, HTTPStatus.BAD_GATEWAY, ErrorType.MODEL_UNAVAILABLE),
+    KnownError(ModelResponseError, HTTPStatus.BAD_GATEWAY, ErrorType.MODEL_RESPONSE_INVALID),
 )
 
 
