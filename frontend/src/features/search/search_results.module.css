@@ -17,11 +17,15 @@
   gap: var(--space-1);
   margin: 0;
   padding: 0 var(--space-2);
+  font-family: var(--font-sans);
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1.45;
 }
 
 .count {
   color: var(--text-muted);
+  font-size: 12px;
   font-weight: 400;
 }
 

@@ -8,6 +8,7 @@ import {
   SegmentKind,
   SuggestionStatus,
   buildDocumentParagraphs,
+  type DocumentParagraph,
   type DocumentSegment,
   type ReviewSuggestion,
   type TextSpan,
@@ -15,6 +16,7 @@ import {
 import {
   SuggestionPartKind,
   buildSuggestionParts,
+  getRenderedSeparator,
   type SuggestionPart,
 } from "./suggestion_diff.ts";
 import styles from "./document_view.module.css";
@@ -205,7 +207,7 @@ export function DocumentView({
           <p
             key={paragraph.start}
             data-start={paragraph.start}
-            className={paragraphClass(paragraph.isHeading, paragraph.changeState)}
+            className={paragraphClassName(paragraph, activeSuggestionId)}
           >
             {paragraph.segments.map((segment) => (
               <SegmentView
@@ -381,6 +383,13 @@ function renderSuggestionParts(
       ),
     );
     originalOffset += part.text.length;
+    const next = index + 1 < parts.length ? parts[index + 1] : undefined;
+    if (part.kind === SuggestionPartKind.Removed && next?.kind === SuggestionPartKind.Added) {
+      const separator = getRenderedSeparator(part.text, next.text);
+      if (separator !== "") {
+        views.push(separator);
+      }
+    }
   }
   return views;
 }
@@ -649,6 +658,45 @@ function rangesOverlap(
     return false;
   }
   return start < focusEnd && focusStart < end;
+}
+
+/**
+ * Choose the paragraph classes, including a stronger bar when it holds the active suggestion.
+ * @param paragraph - The paragraph.
+ * @param activeSuggestionId - The suggestion the keyboard is on, or null.
+ * @returns The class list.
+ * @throws Does not throw.
+ */
+function paragraphClassName(
+  paragraph: DocumentParagraph,
+  activeSuggestionId: string | null,
+): string {
+  const names = [paragraphClass(paragraph.isHeading, paragraph.changeState)];
+  if (paragraphHoldsActiveSuggestion(paragraph, activeSuggestionId)) {
+    names.push(styles.activeChange);
+  }
+  return names.join(" ");
+}
+
+/**
+ * Report whether the active suggestion is in this paragraph.
+ * @param paragraph - The paragraph.
+ * @param activeSuggestionId - The suggestion the keyboard is on, or null.
+ * @returns True when the paragraph holds that suggestion.
+ * @throws Does not throw.
+ */
+function paragraphHoldsActiveSuggestion(
+  paragraph: DocumentParagraph,
+  activeSuggestionId: string | null,
+): boolean {
+  if (activeSuggestionId === null) {
+    return false;
+  }
+  return paragraph.segments.some(
+    (segment) =>
+      segment.kind === SegmentKind.Suggestion &&
+      segment.suggestion.suggestionId === activeSuggestionId,
+  );
 }
 
 /**

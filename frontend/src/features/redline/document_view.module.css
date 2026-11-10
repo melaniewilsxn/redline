@@ -104,6 +104,10 @@
   border-left-color: var(--accept);
 }
 
+.activeChange {
+  border-left-width: 3px;
+}
+
 .deletion,
 .insertion {
   display: inline-block;
@@ -146,9 +150,9 @@
 
 .active,
 .hovered {
-  outline: 1.5px solid var(--focus-ring);
-  outline-offset: 2px;
-  border-radius: 2px;
+  background: var(--active-change-bg);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .marked {

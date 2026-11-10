@@ -15,6 +15,7 @@
   --accept-bg: #e6f3ec;
   --ai: #6d5bd0;
   --ai-bg: #efecfb;
+  --active-change-bg: rgba(47, 91, 211, 0.07);
   --search-highlight: #f5e6b8;
   --shadow-popover: 0 8px 24px rgba(28, 27, 25, 0.12);
   --space-1: 4px;
@@ -56,6 +57,7 @@
     --accept-bg: rgba(95, 211, 164, 0.14);
     --ai: #a99bff;
     --ai-bg: rgba(169, 155, 255, 0.14);
+    --active-change-bg: rgba(143, 176, 255, 0.1);
     --search-highlight: #5c4b1e;
     --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.4);
   }
@@ -78,6 +80,7 @@
   --accept-bg: rgba(95, 211, 164, 0.14);
   --ai: #a99bff;
   --ai-bg: rgba(169, 155, 255, 0.14);
+  --active-change-bg: rgba(143, 176, 255, 0.1);
   --search-highlight: #5c4b1e;
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.4);
 }

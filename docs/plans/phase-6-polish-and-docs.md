@@ -147,6 +147,42 @@ Screenshots go in `docs/screenshots/` as PNG at 1440 × 900, light and dark, tak
 3. Commit and push, using the problem/solution commit style. One commit per part is fine.
 4. Repeat the fresh-clone run from Part B: clone the **pushed** repo (not the local folder) into a temp folder and follow only the README. Report every step's result. Stop the clone's servers and remove the temp folder afterwards. If the run finds a problem, fix it, push again, and rerun.
 
+## Follow-ups from the second walkthrough
+
+Do these, then re-take the affected screenshots and push.
+
+### F1. Merge word-level scraps into phrase changes
+
+On heavy rewrites, the word diff interleaves single words: "~~the~~ negligence ~~Customer's~~ or ~~instructions~~ wilful misconduct". A deletion also sits directly against its insertion ("~~The~~Each"). Comparison tools fix this with a semantic cleanup pass, and so will `buildSuggestionParts`:
+
+- After `diffWordsWithSpace`, an **unchanged** part that sits between two changed parts is absorbed into the change when it's short: whitespace or punctuation only, or at most `SHORT_UNCHANGED_WORD_COUNT = 2` words. Absorbed means its text is added to **both** the removed run and the added run around it.
+- Then merge neighboring parts of the same kind, and order each change as all of its removed text followed by all of its added text. The result reads as phrase-level changes ("~~the Customer's use of the Goods~~ the Indemnifying Party's breach of this agreement"), the way a lawyer marks up a draft.
+- A real space separates a `<del>` from the `<ins>` that follows it, if the text doesn't already have one at that boundary. It's rendered only, never part of the applied text.
+- The round-trip property still holds: unchanged plus removed equals the original, and unchanged plus added equals the replacement.
+- Tests:
+  - `absorbs a short unchanged run between two changes`
+  - `keeps a long unchanged run between two changes`
+  - `merges neighbouring changes into one removed and one added phrase`
+  - the existing round-trip test, run on a heavy-rewrite example taken from the live run
+
+### F2. Mark the active suggestion with a tint, not an outline
+
+The `1.5px` outline is drawn around each line fragment of an inline span, so a multi-line active suggestion gets jagged, broken boxes (see `review_decided.png`). Instead:
+- give the active suggestion a soft background tint (a new `--active-change-bg` token: `rgba(47, 91, 211, 0.07)` light, `rgba(143, 176, 255, 0.10)` dark) with `box-decoration-break: clone`;
+- make its paragraph's change bar 3px instead of 2px.
+
+The ring stays only on the single jumped-to search `<mark>`, which is short.
+
+### F3. Search result headings use the interface type scale
+
+In the search results, the contract title and "15 matches" render at heading size (see `search_jump.png`). The title should be Instrument Sans 13px/500, the count 12px `--text-muted`, and the snippets 12px, as in section 1 of the Phase 5 plan.
+
+### F4. Re-take the dark review screenshot
+
+In `review_dark.png`, the changes panel shows "1 of 5" and nothing else: no cards and no apply bar. `review_decided.png`, also dark, renders the cards fine, so the capture was likely taken mid-load or mid-animation. Re-take it after the cards are visible. If the cards truly don't paint in dark mode after a review loads, find the cause.
+
+After F1 to F4, re-take `review_light.png`, `review_dark.png`, `review_decided.png`, and `search.png`, and check every screenshot linked in the README is current. `docs/infra.md` has uncommitted edits from the user; don't stage or commit it.
+
 ## Checkpoints ✅
 
 Stop at each checkpoint and report before going on.

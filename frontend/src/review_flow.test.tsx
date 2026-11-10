@@ -5,10 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./app.tsx";
 import { REVIEWER_NAME } from "./api/endpoints.ts";
+import documentStyles from "./features/redline/document_view.module.css";
 
 const DOCUMENT_ID = "document-1";
 const ETAG = '"document-1-1"';
-const DOCUMENT_TEXT = "The Customer shall indemnify the Company.";
+const DOCUMENT_TEXT = "The Customer shall indemnify the Company.\n\nThe parties sign below.";
 const SHALL_START = 13;
 const SHALL_END = 18;
 const INDEMNIFY_START = 19;
@@ -175,6 +176,19 @@ describe("review flow", () => {
     const user = userEvent.setup();
     renderApp();
     await openPlaybookReview();
+    const paragraphs = document.querySelector("article")?.querySelectorAll("p");
+    expect(paragraphs?.[0]?.classList.contains(documentStyles.activeChange)).toBe(true);
+    expect(paragraphs?.[1]?.classList.contains(documentStyles.activeChange)).toBe(false);
+    expect(
+      document
+        .querySelector("[data-suggestion-id='s1']")
+        ?.classList.contains(documentStyles.active),
+    ).toBe(true);
+    expect(
+      document
+        .querySelector("[data-suggestion-id='s2']")
+        ?.classList.contains(documentStyles.active),
+    ).toBe(false);
 
     await user.keyboard("a");
     await user.keyboard("r");
@@ -209,6 +223,7 @@ describe("review flow", () => {
     expect(document.querySelectorAll("ins")).toHaveLength(1);
     expect(document.querySelector("del")?.textContent).toBe("shall");
     expect(document.querySelector("ins")?.textContent).toBe("will");
+    expect(document.querySelector("[data-suggestion-id='s1']")?.textContent).toBe("shall will");
   });
 
   it("asks for an open contract before showing the composer", async () => {
