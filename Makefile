@@ -1,4 +1,6 @@
-.PHONY: install test lint format db-up db-down dev seed
+.PHONY: install test lint format db-up db-down dev seed bench
+
+PORT ?= 8000
 
 install:
 	cd backend && uv sync
@@ -19,7 +21,10 @@ db-down:
 	docker compose down
 
 dev:
-	cd backend && uv run --env-file ../.env uvicorn redline.main:build_app --factory --reload
+	cd backend && uv run --env-file ../.env uvicorn redline.main:build_app --factory --reload --port $(PORT) --no-access-log
 
 seed:
 	cd backend && uv run --env-file ../.env python scripts/seed.py
+
+bench:
+	cd backend && uv run python -m scripts.benchmark

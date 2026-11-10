@@ -6,9 +6,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Response
 from psycopg import Connection
 
-from redline.api.dependencies import get_connection
+from redline.api.dependencies import get_connection, get_search_service
 from redline.api.etags import PreconditionRequiredError, build_etag, parse_if_match
 from redline.api.schemas import (
+    DEFAULT_PAGE_LIMIT,
+    MAXIMUM_PAGE_LIMIT,
+    MINIMUM_PAGE_LIMIT,
+    MINIMUM_PAGE_OFFSET,
     AppliedEditResponse,
     ApplyChangesRequest,
     ApplyChangesResponse,
@@ -21,16 +25,13 @@ from redline.api.schemas import (
     to_change,
 )
 from redline.services import document_service
+from redline.services.search_service import SearchService
 from redline.storage import document_repository
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-MINIMUM_PAGE_LIMIT = 1
-MAXIMUM_PAGE_LIMIT = 100
-DEFAULT_PAGE_LIMIT = 20
-MINIMUM_PAGE_OFFSET = 0
 DOCUMENT_LOCATION = "/documents/{document_id}"
 
 
@@ -39,10 +40,13 @@ def create_document(
     body: CreateDocumentRequest,
     response: Response,
     connection: Annotated[Connection, Depends(get_connection)],
+    search_service: Annotated[SearchService, Depends(get_search_service)],
 ) -> DocumentResponse:
     """Store a new document and return it."""
     logger.info(f"Started creating a document of {len(body.text)} characters")
-    document = document_service.create_document(connection, body.title, body.text, body.author)
+    document = document_service.create_document(
+        connection, body.title, body.text, body.author, search_service
+    )
     response.headers["ETag"] = build_etag(document.id, document.version)
     response.headers["Location"] = DOCUMENT_LOCATION.format(document_id=document.id)
     logger.info(f"Finished creating document {document.id} at version {document.version}")
@@ -110,6 +114,7 @@ def apply_changes(
     body: ApplyChangesRequest,
     response: Response,
     connection: Annotated[Connection, Depends(get_connection)],
+    search_service: Annotated[SearchService, Depends(get_search_service)],
     if_match: Annotated[str | None, Header()] = None,
 ) -> ApplyChangesResponse:
     """Apply a batch of changes when If-Match names the current version."""
@@ -127,6 +132,7 @@ def apply_changes(
         expected_version,
         changes,
         body.author,
+        search_service,
     )
     response.headers["ETag"] = build_etag(applied.document.id, applied.document.version)
     logger.info(

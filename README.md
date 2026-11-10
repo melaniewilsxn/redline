@@ -14,7 +14,9 @@ make seed
 make dev
 ```
 
-API docs are at http://localhost:8000/docs.
+Seed before `make dev`. The search index is built from the database when the server starts, so documents seeded while a server is already running do not appear in search until you restart it.
+
+API docs are at http://localhost:8000/docs. If port 8000 is taken, run `make dev PORT=8002`.
 
 Postgres listens on port 5433 so it does not collide with a Postgres already on 5432. `make db-up` creates two databases, `redline` and `redline_test`.
 
@@ -64,7 +66,24 @@ curl -sS -X PATCH http://localhost:8000/documents/DOCUMENT_ID \
   --data '{"author":"Ada","changes":[{"target":{"type":"context","text":"The Customer shall","prefix":"Alpha. ","suffix":" pay."},"replacement":"The Customer will"}]}'
 ```
 
-`samples/curl_requests.sh` walks through create, all three target types, a mixed batch, a stale `If-Match` (412), a missing `If-Match` (428), an overlap (422), missing text (422), an unknown id (404), and version history.
+Search does not change a document, so it is a GET. A word, two words that must both appear, and a quoted phrase:
+
+```bash
+curl -sS "http://localhost:8000/search?q=Customer"
+curl -sS --get http://localhost:8000/search --data-urlencode "q=Customer invoice"
+curl -sS --get http://localhost:8000/search --data-urlencode 'q="written notice"'
+```
+
+Limit the search to documents you name, or to one document:
+
+```bash
+curl -sS --get http://localhost:8000/search \
+  --data-urlencode "q=Customer" \
+  --data-urlencode "document_ids=DOCUMENT_ID"
+curl -sS "http://localhost:8000/documents/DOCUMENT_ID/search?q=Customer"
+```
+
+`samples/curl_requests.sh` walks through create, all three target types, a mixed batch, a stale `If-Match` (412), a missing `If-Match` (428), an overlap (422), missing text (422), an unknown id (404), version history, and search. A query with no words, such as `q=""`, returns 422 `invalid_query`.
 
 ## API design
 
@@ -76,6 +95,8 @@ A change has no `operation` field. Every change means "replace this span." An em
 
 A batch is atomic. Every target is resolved against the current text before any new text is built. If one target is missing, ambiguous, or overlapping, nothing is saved.
 
+Search is a GET with query parameters because a search reads, and the query, the document ids, and the page can be bookmarked. `q` is required and may be 1 to 500 characters. Repeat `document_ids` to search only those documents; leave it off to search everything. `/documents/{id}/search` is the same search limited to one document. A document that is not in the index is a 404, the same `document_not_found` as a missing document.
+
 Reads return a strong ETag, `"<document id>-<version>"`. A write must send that value in `If-Match`. The service checks the version before it does the work, then claims the next version with `UPDATE ... WHERE current_version = <expected>` inside a short transaction. The first writer wins. A second writer, or a stale, weak, wildcard, or foreign ETag, gets 412. A missing `If-Match` gets 428.
 
 Every error body is JSON:
@@ -86,7 +107,8 @@ Every error body is JSON:
 
 | Status | `error_type` | When |
 | --- | --- | --- |
-| 422 | `validation_error` | The JSON does not match the request shape |
+| 422 | `validation_error` | The JSON or query parameters do not match the request shape |
+| 422 | `invalid_query` | The query has no words |
 | 422 | `invalid_target` | A target is malformed, such as a start after its end |
 | 422 | `range_out_of_bounds` | A range ends past the document |
 | 422 | `target_not_found` | The text or occurrence is not there |
@@ -99,6 +121,18 @@ Every error body is JSON:
 | 404, 405, others | `http_error` | The path or method does not exist |
 | 500 | `internal_error` | Anything else. The message is always "Internal server error" |
 
+## Search design
+
+The index is hand-built. The usual BM25 libraries do not store word positions, and they do not update one paragraph of a document after an edit.
+
+Words are folded to one case. A hyphenated word stays one token, so `non-disclosure` does not become two words. One trailing possessive is dropped, so `Company's` and `Company` match, and the highlight still covers `Company's`. There is no stemming: legal wording is matched as written.
+
+Every word has to appear. A quoted phrase has to appear as consecutive words inside one paragraph. A phrase does not match across a blank line. BM25 scores the whole document (k1 = 1.2, b = 0.75), using Lucene's always-positive inverse document frequency. A phrase counts through its words. It does not get an extra boost.
+
+The text is split into paragraphs, and each paragraph keeps the blank lines after it, so the chunks tile the document with no gaps. Token positions are stored relative to the paragraph. An edit can move every later paragraph by changing one start offset, instead of rewriting every posting after the edit.
+
+The database is the source of truth. After a create or edit commits, the service updates the index. When the indexed version is the version the edit was based on, only the touched paragraphs (and one neighbor on each side) are rebuilt. When the version does not match, or that rebuild fails, the document is indexed from scratch. If that also fails, the request still succeeds: the write is already saved, and the next full load will repair the index. One lock guards the index. The process holds the corpus text in memory, and the index is not shared with another server.
+
 ## Performance
 
 Applying changes one at a time would copy the whole document for each change. The engine resolves every target first, sorts the spans, and joins slices once. That rebuild is linear in the document length plus the number of changes. Each text target is a scan of the document, so resolution grows with the document length times the number of text targets. Range targets are constant time. `AppliedEdit` offsets refer to the text from before the batch, so a later step can move other spans without replaying the edits.
@@ -106,6 +140,26 @@ Applying changes one at a time would copy the whole document for each change. Th
 The edit is computed with no transaction open. The compare-and-swap is one update that both checks and claims the next version, so a 10MB rebuild does not hold a row lock. Versions store the full text, which is simple and exact. At 10MB times many versions that cost is real; storing deltas is a later step.
 
 On this machine, a pytest run measured two 10MB cases. Applying 1,000 range changes and checking them against a one-change-at-a-time rebuild took 0.42 seconds (`test_thousand_range_changes_match_one_at_a_time_reference`). Creating a 10MB document, applying 200 occurrence changes through the API, and reading version 2 back took 0.38 seconds (`test_large_document_round_trip_through_api`).
+
+`make bench` times the index against a case-insensitive regex scan. Each number is the median of 5 runs. The contract is the same 10MB delivery text the large tests use. The cross-document case is 20 copies of a 500KB contract, with one sentence about an escrow agent added to document 7 only.
+
+| Case | Indexed ms | Naive ms | Speedup |
+| --- | ---: | ---: | ---: |
+| Build 10MB index | 2787 | - | - |
+| Rare phrase "Schedule 44204 to the Customer" | 248 | 55.4 | 0.2x |
+| Common word customer | 0.008 | 50.0 | 6355.1x |
+| Common phrase "written notice" | 92.3 | 31.4 | 0.3x |
+| Two words supplier rejected | 0.001 | 116 | 99585.0x |
+| Update after 1 edit | 79.9 | 2435 | 30.5x |
+| Update after 100 spread edits | 284 | 2880 | 10.1x |
+| Apply 1,000 range changes | 1.4 | - | - |
+| Cross-document escrow phrase | 0.617 | 92.3 | 149.6x |
+
+An incremental update beats re-indexing the whole 10MB text, about 30 times for one edit and about 10 times for 100 edits spread through the document. The cross-document query is about 150 times faster than scanning all 20 texts, because the other 19 documents do not contain the words and are never opened.
+
+A common word, or two common words, returns in well under a millisecond. The occurrence count is already stored on the document, and the snippet stops after the first three matching paragraphs. The regex scan still reads the whole file.
+
+A phrase is the slow case on a single document. "written notice" sits in every section, and the rare schedule phrase sits near the end, so counting phrase matches walks the paragraphs in Python. One regex pass over the characters is faster there (0.3x and 0.2x). A map from a term to the paragraphs that contain it would skip that walk. That is a planned next step, not a property of this index.
 
 Routes are synchronous. psycopg is synchronous, and FastAPI runs sync routes in a thread pool, so the server does not mix async and blocking database calls.
 
@@ -118,7 +172,11 @@ Routes are synchronous. psycopg is synchronous, and FastAPI runs sync routes in 
 - Auth, users, and per-document permissions. The author is a plain name field.
 - Rich text and .docx import and export. Documents are plain text.
 - Comment threads separate from proposal rationales.
-- Search over the contracts, including an index that updates after a write, and embedding-based semantic search with hybrid re-ranking.
+- A phrase-match boost on top of BM25.
+- A map from a term to the paragraphs that contain it, so a phrase search does not walk every paragraph.
+- A persistent or external index, such as Postgres full-text search or OpenSearch, so more than one server can search.
+- A search mode that can loosen AND semantics. The current search requires every word.
+- Embedding-based semantic search with hybrid re-ranking.
 - Proposals, moving them forward when an edit lands, and accept and reject.
 - Comparing two versions.
 - AI redline suggestions.

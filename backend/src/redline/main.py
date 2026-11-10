@@ -1,4 +1,5 @@
 import logging
+import time
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -9,9 +10,12 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from redline.api.error_handlers import register_error_handlers
 from redline.api.routes.documents import router as documents_router
 from redline.api.routes.health import router as health_router
+from redline.api.routes.search import router as search_router
 from redline.config import Settings, load_settings
 from redline.logging_setup import configure_logging, request_id_context
+from redline.services.search_service import SearchService
 from redline.storage.database import apply_schema, open_connection_pool
+from redline.storage.document_repository import list_current_documents
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +60,14 @@ def create_app(settings: Settings) -> FastAPI:
         try:
             with pool.connection() as connection:
                 apply_schema(connection)
+                documents = list_current_documents(connection)
+            search_service = SearchService()
+            started = time.perf_counter()
+            search_service.load_documents(documents)
+            elapsed = time.perf_counter() - started
             app.state.connection_pool = pool
+            app.state.search_service = search_service
+            logger.info(f"Indexed {len(documents)} documents in {elapsed:.3f} seconds")
             logger.info("Started the server")
             yield
         finally:
@@ -67,6 +78,7 @@ def create_app(settings: Settings) -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
     register_error_handlers(app)
     app.include_router(documents_router)
+    app.include_router(search_router)
     app.include_router(health_router)
     return app
 

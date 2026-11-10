@@ -34,6 +34,20 @@ SET current_version = current_version + 1, updated_at = now()
 WHERE id = %s AND current_version = %s
 """
 
+LIST_CURRENT_DOCUMENTS = """
+SELECT
+    documents.id,
+    documents.title,
+    documents.current_version AS version,
+    document_versions.text,
+    documents.created_at,
+    documents.updated_at
+FROM documents
+JOIN document_versions
+    ON document_versions.document_id = documents.id
+    AND document_versions.version = documents.current_version
+"""
+
 GET_DOCUMENT = """
 SELECT
     documents.id,
@@ -115,6 +129,13 @@ def advance_document_version(
     """Claim the next version when the row is still at expected_version."""
     cursor = connection.execute(ADVANCE_DOCUMENT_VERSION, (document_id, expected_version))
     return cursor.rowcount == 1
+
+
+def list_current_documents(connection: Connection) -> list[StoredDocument]:
+    """Return every document with its current text."""
+    with connection.cursor(row_factory=class_row(StoredDocument)) as cursor:
+        cursor.execute(LIST_CURRENT_DOCUMENTS)
+        return list(cursor.fetchall())
 
 
 def get_document(connection: Connection, document_id: UUID) -> StoredDocument:

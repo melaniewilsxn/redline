@@ -12,11 +12,17 @@ from redline.editing.models import Change, ContextTarget, OccurrenceTarget, Rang
 
 logger = logging.getLogger(__name__)
 
+MINIMUM_PAGE_LIMIT = 1
+MAXIMUM_PAGE_LIMIT = 100
+DEFAULT_PAGE_LIMIT = 20
+MINIMUM_PAGE_OFFSET = 0
+
 
 class ErrorType(StrEnum):
     """Stable code for an API error."""
 
     VALIDATION_ERROR = "validation_error"
+    INVALID_QUERY = "invalid_query"
     INVALID_TARGET = "invalid_target"
     RANGE_OUT_OF_BOUNDS = "range_out_of_bounds"
     TARGET_NOT_FOUND = "target_not_found"
@@ -168,6 +174,46 @@ class DocumentVersionResponse:
     author: str
     summary: str
     created_at: datetime
+
+
+@dataclass
+class TextSpanResponse:
+    """A character span in a document."""
+
+    start: int
+    end: int
+
+
+@dataclass
+class SnippetResponse:
+    """A short excerpt and the spans that matched."""
+
+    start: int
+    end: int
+    text: str
+    highlights: list[TextSpanResponse]
+
+
+@dataclass
+class SearchHitResponse:
+    """One document that matched a search."""
+
+    document_id: UUID
+    title: str
+    version: int
+    score: float
+    match_count: int
+    snippets: list[SnippetResponse]
+
+
+@dataclass
+class SearchResponse:
+    """One page of search hits."""
+
+    hits: list[SearchHitResponse]
+    total_count: int
+    limit: int
+    offset: int
 
 
 @dataclass

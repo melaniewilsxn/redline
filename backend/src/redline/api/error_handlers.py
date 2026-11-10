@@ -1,5 +1,6 @@
 import logging
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import asdict, dataclass
 from http import HTTPStatus
 
 from fastapi import FastAPI, Request
@@ -20,6 +21,7 @@ from redline.editing.errors import (
     TargetNotFoundError,
 )
 from redline.logging_setup import REQUEST_ID_HEADER, request_id_context
+from redline.search.errors import DocumentNotIndexedError, EmptyQueryError
 from redline.services.errors import StaleVersionError
 from redline.storage.errors import DocumentNotFoundError, DocumentVersionNotFoundError
 
@@ -41,21 +43,66 @@ class ValidationSummary:
     summary: str
 
 
+@dataclass(frozen=True)
+class KnownError:
+    """How one failure class maps onto an error response."""
+
+    exception_class: type[Exception]
+    status: HTTPStatus
+    error_type: ErrorType
+
+
+KNOWN_ERRORS = (
+    KnownError(InvalidTargetError, HTTPStatus.UNPROCESSABLE_CONTENT, ErrorType.INVALID_TARGET),
+    KnownError(
+        RangeOutOfBoundsError, HTTPStatus.UNPROCESSABLE_CONTENT, ErrorType.RANGE_OUT_OF_BOUNDS
+    ),
+    KnownError(TargetNotFoundError, HTTPStatus.UNPROCESSABLE_CONTENT, ErrorType.TARGET_NOT_FOUND),
+    KnownError(AmbiguousTargetError, HTTPStatus.UNPROCESSABLE_CONTENT, ErrorType.AMBIGUOUS_TARGET),
+    KnownError(
+        OverlappingChangesError, HTTPStatus.UNPROCESSABLE_CONTENT, ErrorType.OVERLAPPING_CHANGES
+    ),
+    KnownError(EmptyQueryError, HTTPStatus.UNPROCESSABLE_CONTENT, ErrorType.INVALID_QUERY),
+    KnownError(DocumentNotFoundError, HTTPStatus.NOT_FOUND, ErrorType.DOCUMENT_NOT_FOUND),
+    KnownError(DocumentNotIndexedError, HTTPStatus.NOT_FOUND, ErrorType.DOCUMENT_NOT_FOUND),
+    KnownError(DocumentVersionNotFoundError, HTTPStatus.NOT_FOUND, ErrorType.VERSION_NOT_FOUND),
+    KnownError(StaleVersionError, HTTPStatus.PRECONDITION_FAILED, ErrorType.PRECONDITION_FAILED),
+    KnownError(
+        PreconditionFailedError, HTTPStatus.PRECONDITION_FAILED, ErrorType.PRECONDITION_FAILED
+    ),
+    KnownError(
+        PreconditionRequiredError,
+        HTTPStatus.PRECONDITION_REQUIRED,
+        ErrorType.PRECONDITION_REQUIRED,
+    ),
+)
+
+
 def register_error_handlers(app: FastAPI) -> None:
     """Map each failure class onto the JSON error body."""
+    for known_error in KNOWN_ERRORS:
+        app.add_exception_handler(
+            known_error.exception_class, build_known_error_handler(known_error)
+        )
     app.add_exception_handler(RequestValidationError, handle_validation_error)
-    app.add_exception_handler(InvalidTargetError, handle_invalid_target)
-    app.add_exception_handler(RangeOutOfBoundsError, handle_range_out_of_bounds)
-    app.add_exception_handler(TargetNotFoundError, handle_target_not_found)
-    app.add_exception_handler(AmbiguousTargetError, handle_ambiguous_target)
-    app.add_exception_handler(OverlappingChangesError, handle_overlapping_changes)
-    app.add_exception_handler(DocumentNotFoundError, handle_document_not_found)
-    app.add_exception_handler(DocumentVersionNotFoundError, handle_version_not_found)
-    app.add_exception_handler(StaleVersionError, handle_stale_version)
-    app.add_exception_handler(PreconditionFailedError, handle_precondition_failed)
-    app.add_exception_handler(PreconditionRequiredError, handle_precondition_required)
     app.add_exception_handler(HTTPException, handle_http_exception)
     app.add_exception_handler(Exception, handle_unexpected_error)
+
+
+def build_known_error_handler(
+    known_error: KnownError,
+) -> Callable[[Request, Exception], JSONResponse]:
+    """Return a handler that logs this error and responds with its status and type."""
+
+    def handle_known_error(request: Request, error: Exception) -> JSONResponse:
+        """Log the failure and return its status and type."""
+        logger.warning(
+            f"Request failed with {known_error.error_type} for {request.url.path}: "
+            f"{type(error).__name__}"
+        )
+        return build_error_response(known_error.status, known_error.error_type, str(error))
+
+    return handle_known_error
 
 
 def handle_validation_error(request: Request, error: Exception) -> JSONResponse:
@@ -70,72 +117,6 @@ def handle_validation_error(request: Request, error: Exception) -> JSONResponse:
         HTTPStatus.UNPROCESSABLE_CONTENT,
         ErrorType.VALIDATION_ERROR,
         validation.summary,
-    )
-
-
-def handle_invalid_target(request: Request, error: Exception) -> JSONResponse:
-    """Return 422 when a target is malformed."""
-    return respond_with_known_error(
-        error, HTTPStatus.UNPROCESSABLE_CONTENT, ErrorType.INVALID_TARGET
-    )
-
-
-def handle_range_out_of_bounds(request: Request, error: Exception) -> JSONResponse:
-    """Return 422 when a range ends past the document."""
-    return respond_with_known_error(
-        error, HTTPStatus.UNPROCESSABLE_CONTENT, ErrorType.RANGE_OUT_OF_BOUNDS
-    )
-
-
-def handle_target_not_found(request: Request, error: Exception) -> JSONResponse:
-    """Return 422 when the target text is not in the document."""
-    return respond_with_known_error(
-        error, HTTPStatus.UNPROCESSABLE_CONTENT, ErrorType.TARGET_NOT_FOUND
-    )
-
-
-def handle_ambiguous_target(request: Request, error: Exception) -> JSONResponse:
-    """Return 422 when a context target matches more than once."""
-    return respond_with_known_error(
-        error, HTTPStatus.UNPROCESSABLE_CONTENT, ErrorType.AMBIGUOUS_TARGET
-    )
-
-
-def handle_overlapping_changes(request: Request, error: Exception) -> JSONResponse:
-    """Return 422 when two changes cover the same text."""
-    return respond_with_known_error(
-        error, HTTPStatus.UNPROCESSABLE_CONTENT, ErrorType.OVERLAPPING_CHANGES
-    )
-
-
-def handle_document_not_found(request: Request, error: Exception) -> JSONResponse:
-    """Return 404 when the document does not exist."""
-    return respond_with_known_error(error, HTTPStatus.NOT_FOUND, ErrorType.DOCUMENT_NOT_FOUND)
-
-
-def handle_version_not_found(request: Request, error: Exception) -> JSONResponse:
-    """Return 404 when the version does not exist."""
-    return respond_with_known_error(error, HTTPStatus.NOT_FOUND, ErrorType.VERSION_NOT_FOUND)
-
-
-def handle_stale_version(request: Request, error: Exception) -> JSONResponse:
-    """Return 412 when If-Match names an old version."""
-    return respond_with_known_error(
-        error, HTTPStatus.PRECONDITION_FAILED, ErrorType.PRECONDITION_FAILED
-    )
-
-
-def handle_precondition_failed(request: Request, error: Exception) -> JSONResponse:
-    """Return 412 when If-Match is not one of our ETags."""
-    return respond_with_known_error(
-        error, HTTPStatus.PRECONDITION_FAILED, ErrorType.PRECONDITION_FAILED
-    )
-
-
-def handle_precondition_required(request: Request, error: Exception) -> JSONResponse:
-    """Return 428 when If-Match is missing."""
-    return respond_with_known_error(
-        error, HTTPStatus.PRECONDITION_REQUIRED, ErrorType.PRECONDITION_REQUIRED
     )
 
 
@@ -164,24 +145,13 @@ def handle_unexpected_error(request: Request, error: Exception) -> JSONResponse:
     return response
 
 
-def respond_with_known_error(
-    error: Exception, status: HTTPStatus, error_type: ErrorType
-) -> JSONResponse:
-    """Log a known failure and return its message."""
-    logger.warning(f"Request failed with {error_type}: {error}")
-    return build_error_response(status, error_type, str(error))
-
-
 def build_error_response(
     status: HTTPStatus | int, error_type: ErrorType, message: str
 ) -> JSONResponse:
     """Build the JSON body every error returns."""
     status_code = int(status)
     body = ErrorResponse(error=message, code=status_code, error_type=error_type)
-    return JSONResponse(
-        status_code=status_code,
-        content={"error": body.error, "code": body.code, "error_type": body.error_type},
-    )
+    return JSONResponse(status_code=status_code, content=asdict(body))
 
 
 def get_validation_summary(error: RequestValidationError) -> ValidationSummary:

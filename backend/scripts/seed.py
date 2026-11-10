@@ -5,6 +5,7 @@ from pathlib import Path
 from redline.config import load_settings
 from redline.logging_setup import configure_logging
 from redline.services.document_service import create_document
+from redline.services.search_service import SearchService
 from redline.storage.database import apply_schema, get_safe_error_detail, open_connection_pool
 from redline.storage.document_repository import list_documents
 
@@ -45,9 +46,10 @@ def seed_documents(database_url: str) -> int:
             if existing.total_count > 0:
                 logger.info(f"Skipping seed because {existing.total_count} documents already exist")
                 return 0
+            search_service = SearchService()
             for path in contract_paths:
                 title = path.stem.replace("_", " ")
-                create_document(connection, title, path.read_text(), SEED_AUTHOR)
+                create_document(connection, title, path.read_text(), SEED_AUTHOR, search_service)
         return len(contract_paths)
     finally:
         pool.close()

@@ -9,6 +9,7 @@ from psycopg import Connection
 from redline.editing.apply import apply_changes
 from redline.editing.models import AppliedEdit, Change
 from redline.services.errors import StaleVersionError
+from redline.services.search_service import SearchService
 from redline.storage.document_repository import (
     INITIAL_DOCUMENT_VERSION,
     advance_document_version,
@@ -24,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 CREATED_DOCUMENT_SUMMARY = "Created document"
 APPLIED_CHANGES_SUMMARY = "Applied {change_count} changes"
-FIRST_VERSION = INITIAL_DOCUMENT_VERSION
 
 
 @dataclass(frozen=True)
@@ -35,8 +35,14 @@ class AppliedDocumentChanges:
     applied_edits: list[AppliedEdit]
 
 
-def create_document(connection: Connection, title: str, text: str, author: str) -> StoredDocument:
-    """Store a new document and its first version."""
+def create_document(
+    connection: Connection,
+    title: str,
+    text: str,
+    author: str,
+    search_service: SearchService,
+) -> StoredDocument:
+    """Store a new document and its first version, then add it to the index."""
     logger.info(f"Started creating a document of {len(text)} characters")
     document_id = uuid.uuid7()
     with connection.transaction():
@@ -44,12 +50,13 @@ def create_document(connection: Connection, title: str, text: str, author: str) 
         insert_document_version(
             connection,
             document_id,
-            FIRST_VERSION,
+            INITIAL_DOCUMENT_VERSION,
             text,
             author,
             CREATED_DOCUMENT_SUMMARY,
         )
     document = get_document(connection, document_id)
+    search_service.add_document(document)
     logger.info(f"Finished creating document {document.id} at version {document.version}")
     return document
 
@@ -60,6 +67,7 @@ def apply_document_changes(
     expected_version: int,
     changes: list[Change],
     author: str,
+    search_service: SearchService,
 ) -> AppliedDocumentChanges:
     """Apply a batch of changes when the document is still at the expected version."""
     logger.info(
@@ -93,6 +101,7 @@ def apply_document_changes(
         created_at=document.created_at,
         updated_at=updated_at,
     )
+    search_service.update_document(stored, edited.applied_edits, expected_version)
     logger.info(
         f"Finished applying changes to document {document_id} "
         f"at version {stored.version}, length {len(stored.text)}"

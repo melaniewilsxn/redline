@@ -1,5 +1,4 @@
 import random
-from enum import Enum, auto
 
 import pytest
 
@@ -10,23 +9,20 @@ from redline.editing.anchors import (
 )
 from redline.editing.apply import apply_changes
 from redline.editing.models import (
-    Change,
     ContextTarget,
     LiveSpan,
     OccurrenceTarget,
-    RangeTarget,
     ResolvedChange,
     TextSpan,
 )
 from redline.editing.rebase import rebase_span
-from tests.fixtures.large_contract import LARGE_DOCUMENT_CHARACTER_COUNT, build_large_contract
+from tests.fixtures.large_contract import (
+    CHANGE_COUNT,
+    LARGE_DOCUMENT_CHARACTER_COUNT,
+    build_large_contract,
+    build_spread_changes,
+)
 
-CHANGE_COUNT = 1000
-REPLACED_CHARACTER_COUNT = 8
-LONGER_REPLACEMENT = "LONGER-TEXT"
-SHORTER_REPLACEMENT = "x"
-DELETION_REPLACEMENT = ""
-INSERT_TEXT = "INS"
 CHANGE_ORDER_SEED = 1
 GAP_OFFSET = 50
 GAP_LENGTH = 20
@@ -34,23 +30,6 @@ UNTOUCHED_SPAN_INDEXES = (10, 200, 400, 600, 800)
 REPEATED_CLAUSE = "The Customer may reject"
 CLAUSE_PREFIX = "Schedule {number} to the Customer within thirty (30) days of the Order Date. "
 CLAUSE_SUFFIX = " non-conforming Goods"
-
-
-class EditPattern(Enum):
-    """Which replacement a spread change uses."""
-
-    LONGER = auto()
-    SHORTER = auto()
-    DELETION = auto()
-    INSERT = auto()
-
-
-EDIT_PATTERNS = (
-    EditPattern.LONGER,
-    EditPattern.SHORTER,
-    EditPattern.DELETION,
-    EditPattern.INSERT,
-)
 
 
 @pytest.fixture(scope="module")
@@ -65,31 +44,6 @@ def apply_one_at_a_time(text: str, sorted_changes: list[ResolvedChange]) -> str:
     for change in reversed(sorted_changes):
         edited = edited[: change.span.start] + change.replacement + edited[change.span.end :]
     return edited
-
-
-def build_spread_changes(document_length: int) -> list[Change]:
-    """Build non-overlapping range changes spread evenly across the document."""
-    stride = document_length // CHANGE_COUNT
-    changes: list[Change] = []
-    for index in range(CHANGE_COUNT):
-        start = index * stride
-        match EDIT_PATTERNS[index % len(EDIT_PATTERNS)]:
-            case EditPattern.LONGER:
-                end = start + REPLACED_CHARACTER_COUNT
-                replacement = LONGER_REPLACEMENT
-            case EditPattern.SHORTER:
-                end = start + REPLACED_CHARACTER_COUNT
-                replacement = SHORTER_REPLACEMENT
-            case EditPattern.DELETION:
-                end = start + REPLACED_CHARACTER_COUNT
-                replacement = DELETION_REPLACEMENT
-            case EditPattern.INSERT:
-                end = start
-                replacement = INSERT_TEXT
-            case _:
-                raise RuntimeError(f"Unknown edit pattern for change {index}")
-        changes.append(Change(target=RangeTarget(start=start, end=end), replacement=replacement))
-    return changes
 
 
 def get_section_number(section: str) -> int:

@@ -137,7 +137,7 @@ PARAGRAPH_BREAK_PATTERN = re.compile(r"\n[ \t]*\n\s*")
 MAXIMUM_CHUNK_CHARACTERS = 4000
 ```
 
-`split_into_chunks(text: str, offset: int) -> list[TextSpan]`: split `text` into spans that **tile it exactly**, with no gaps and no overlaps. Each span is a paragraph plus the blank lines after it. A paragraph longer than `MAXIMUM_CHUNK_CHARACTERS` is split at the last whitespace before the limit, or at the limit if there's none. `offset` is added to every span, so a slice can be re-chunked in place (section 5). Empty text returns no spans.
+`split_into_chunks(text: str, offset: int) -> list[TextSpan]`: split `text` into spans that **tile it exactly**, with no gaps and no overlaps. Each span is a paragraph plus the blank lines after it. A paragraph longer than `MAXIMUM_CHUNK_CHARACTERS` is split at the last whitespace before the limit, and that whitespace starts the next span. With no whitespace, it's split at the limit. `offset` is added to every span, so a slice can be re-chunked in place (section 5). Empty text returns no spans.
 
 Tiling is what makes incremental updates simple. Untouched chunks just move, and a re-chunked region fits exactly where the old one was.
 
@@ -188,15 +188,17 @@ Text is kept in memory for snippets and incremental updates. That costs memory e
 | `remove_document_terms(index, document) -> None` | Take a document's terms out of `term_documents` (used before re-indexing it). |
 | `add_document_terms(index, document) -> None` | Put them back. |
 
-**`update_indexed_document`**, with `text` the new text and `applied_edits` in pre-batch offsets:
+**`update_indexed_document`**, with `text` the new text and `applied_edits` in pre-batch offsets, sorted and non-overlapping as `apply_changes` returns them:
 
-1. Find the affected chunks. A chunk `[c_start, c_end)` is affected by an edit `[e_start, e_end)` when `c_start <= e_end` and `e_start <= c_end`. This is inclusive, so an insert on a boundary touches both neighbors. Add one neighbor chunk on each side of every affected chunk, because an edit can add or remove a blank line and merge or split paragraphs.
-2. Group the affected chunk positions into runs of consecutive chunks.
-3. Walk the old chunks in order with a running `shift` (the sum of `length_change` for edits that end at or before the current position):
-   - an unaffected chunk is kept, with `start + shift`;
-   - for a run, its old region is `[first.start, last.end)`. Its new region starts at `first.start + shift_before_run` and ends at `last.end + shift_before_run + change_within_run`, where `change_within_run` sums `length_change` for edits inside the run. Re-chunk `text[new_start:new_end]` with `split_into_chunks(..., offset=new_start)` and index each new chunk.
-4. Rebuild `term_counts` and `token_count` by subtracting the removed chunks' counts and adding the new ones. Update `term_documents` for every term whose count crossed zero.
-5. Store the new text and version.
+1. **Touched chunks.** A chunk `[chunk_start, chunk_end)` is touched by an edit when their half-open ranges overlap, or when the edit is a zero-width insert with `chunk_start <= edit.start <= chunk_end` (an insert on either edge). Add one neighbor chunk on each side of every touched chunk, because an edit can add or remove a blank line and merge or split paragraphs.
+2. **Runs.** Group the touched chunk positions into runs of consecutive chunks. Runs that are next to each other merge into one, so no two runs share an edge.
+3. **Assign each edit to exactly one run:** the run it overlaps, or whose edge its insert sits on. Every edit touches some chunk, so every edit has a run. Because runs never share an edge, an insert on a boundary can't be counted twice.
+4. **Rebuild in order** with a running `shift`, starting at 0:
+   - an untouched chunk is kept, with `start + shift`;
+   - for a run covering old `[run_start, run_end)`, `run_change` is the sum of `length_change` over the run's edits. Its new region is `[run_start + shift, run_end + shift + run_change)`. Re-chunk `text` over that region with `split_into_chunks(text[new_start:new_end], offset=new_start)`, index each new chunk, then add `run_change` to `shift`.
+
+   This places an insert at the start of the document, at the end, and on any chunk boundary exactly once.
+5. **Build the replacement `IndexedDocument` separately**, with its new chunks, `term_counts` and `token_count` adjusted for the removed and added chunks, and the new text and version. Then swap it into `index.documents` and update `term_documents` for every term whose count crossed zero. If anything raises before the swap, the previous entry is untouched, so the full re-index fallback starts from a clean state.
 
 The cost is proportional to the size of the touched paragraphs plus the number of chunks, not to re-tokenizing the whole document. The test in section 13 checks that the result is identical to a full `index_document` of the new text, which keeps this honest.
 
@@ -209,9 +211,11 @@ BM25_K1 = 1.2
 BM25_B = 0.75
 ```
 
-`score_bm25(index: SearchIndex, document: IndexedDocument, terms: list[str]) -> float`: standard BM25 over the whole document, where `terms` is the unquoted terms plus every phrase term, de-duplicated:
-- `idf = ln(1 + (N - df + 0.5) / (df + 0.5))`, with `N = len(index.documents)` and `df = len(index.term_documents[term])`.
-- `tf = document.term_counts[term]`; `dl = document.token_count`; `avgdl` is the mean `token_count` over the index.
+`score_bm25(index: SearchIndex, document: IndexedDocument, terms: list[str]) -> float`: standard BM25 over the whole document, where `terms` is the unquoted terms plus every phrase term, de-duplicated. For each term, the score adds `inverse_document_frequency * term_frequency * (BM25_K1 + 1) / (term_frequency + BM25_K1 * (1 - BM25_B + BM25_B * document_length / average_document_length))`:
+- `inverse_document_frequency = ln(1 + (document_count - containing_document_count + 0.5) / (containing_document_count + 0.5))` (Lucene's always-positive form), with `document_count = len(index.documents)` and `containing_document_count` the size of the term's `term_documents` entry, or 0 when the term is in no document (check with `in`, no missing-key error).
+- `term_frequency` is the document's `term_counts` entry (0 if absent); `document_length = document.token_count`; `average_document_length` is the mean `token_count` over the index. If the average is 0, the score is 0.
+
+Use these full-word names in the code, not `tf`, `dl`, or `df`.
 
 Phrases count through their terms. A phrase match doesn't get an extra boost; that's a noted next step.
 
@@ -224,7 +228,7 @@ SNIPPET_MAXIMUM_CHARACTERS = 240
 ```
 
 - `find_chunk_highlights(chunk: IndexedChunk, query: SearchQuery) -> list[TextSpan]`: absolute spans of every unquoted term occurrence, plus every phrase match. A phrase match is a run of positions `p, p+1, ...` holding the phrase's terms in order, and its span runs from the first token's start to the last token's end. Sorted, and merged where they overlap.
-- `build_snippet(text: str, chunk: IndexedChunk, highlights: list[TextSpan]) -> Snippet`: a window starting `SNIPPET_LEADING_CHARACTERS` before the first highlight, up to `SNIPPET_MAXIMUM_CHARACTERS` long, clipped to the chunk with its trailing blank lines removed. Edges are moved to whitespace without cutting a highlight. The snippet keeps only the highlights fully inside the window.
+- `build_snippet(text: str, chunk: IndexedChunk, highlights: list[TextSpan]) -> Snippet`: a window starting `SNIPPET_LEADING_CHARACTERS` before the first highlight, up to `SNIPPET_MAXIMUM_CHARACTERS` long, clipped to the chunk with its trailing blank lines removed. Edges are moved to whitespace without cutting a highlight. A first highlight longer than the maximum is kept whole, and the window grows to fit it. The snippet keeps only the highlights fully inside the window.
 
 Snippets are the **first** matching chunks in document order, up to the maximum, like stepping through Find in Word. That also lets the scan stop early.
 
@@ -235,7 +239,7 @@ Snippets are the **first** matching chunks in document order, up to the maximum,
 1. **Candidates:** the scope's documents (`SelectedDocuments` ids not in the index raise `DocumentNotIndexedError`), intersected with `term_documents[term]` for every unquoted term and phrase term. Start the intersection with the rarest term.
 2. **Phrase check:** for each candidate with phrases, keep it only if every phrase matches in at least one chunk.
 3. **Hits:** for each match, `match_count` is the sum of `term_counts` for the unquoted terms, plus the number of phrase matches. Score with `score_bm25`.
-4. **Order:** by score descending, then `document_id`, for stable paging. `total_count` is the number of matching documents.
+4. **Order:** by score descending, then `document_id`, for stable paging. `total_count` is the number of matching documents, counted before the page is sliced.
 5. **Snippets** are built only for the hits on the requested page.
 
 ## 7. `storage/document_repository.py`
@@ -249,12 +253,12 @@ class SearchService:
     """Owns the live index and keeps it consistent with committed writes."""
 ```
 
-It holds one `SearchIndex` and one `threading.Lock`. Every method takes the lock: routes are sync and run on a thread pool, so reads and writes can overlap.
+It holds one `SearchIndex` and one `threading.Lock`. Every public method takes the lock exactly once and never calls another method that takes it (the lock isn't re-entrant). Routes are sync and run on a thread pool, so reads and writes can overlap.
 
 | Method | One job |
 |---|---|
 | `load_documents(self, documents: list[StoredDocument]) -> None` | Index every document (at startup). |
-| `add_document(self, document: StoredDocument) -> None` | Full index of a new document. |
+| `add_document(self, document: StoredDocument) -> None` | Full index of a new document. A failure is logged and doesn't fail the request, since the database write already committed. Log entry and exit with the document id, version, and length. |
 | `update_document(self, document: StoredDocument, applied_edits: list[AppliedEdit], base_version: int) -> None` | If the indexed version equals `base_version`, call `update_indexed_document`. Otherwise log a warning and call `index_document`. Any exception from the incremental path is logged with `logger.exception`, and the document is fully re-indexed instead. If that also fails, log the error and leave it: the database write already succeeded, and the request must not fail because of the index. |
 | `search(self, query_text: str, scope: SearchScope, limit: int, offset: int) -> SearchPage` | `parse_query`, then `run_query`. |
 
@@ -262,7 +266,7 @@ Log entry and exit for `load_documents` (count, time taken), `update_document` (
 
 ### `document_service.py`
 
-`create_document` and `apply_document_changes` take a `search_service: SearchService` argument. Each calls the service **after** its transaction block commits: `add_document`, or `update_document(stored, edited.applied_edits, expected_version)`. This is the write path from the behavior rules.
+`create_document` and `apply_document_changes` take a `search_service: SearchService` argument. Update every existing caller, including `tests/services/test_document_service.py`, which also switches to `INITIAL_DOCUMENT_VERSION` once the alias is gone. Each calls the service **after** its transaction block commits: `add_document`, or `update_document(stored, edited.applied_edits, expected_version)`. This is the write path from the behavior rules.
 
 `scripts/seed.py` writes straight to the database, so a running server won't see seeded documents until it restarts. The README says to seed before `make dev`, or to restart after seeding. The seed script builds its own throwaway `SearchService` to satisfy the new argument.
 
@@ -371,6 +375,9 @@ The guidelines' test structure applies. Search unit tests are pure: no database,
 - `test_incremental_update_matches_full_reindex_for_edit_removing_paragraph_break` (two paragraphs merge)
 - `test_incremental_update_matches_full_reindex_for_edit_adding_paragraph_break`
 - `test_incremental_update_matches_full_reindex_for_insert_at_chunk_boundary`
+- `test_incremental_update_matches_full_reindex_for_insert_at_document_start`
+- `test_incremental_update_matches_full_reindex_for_insert_at_document_end`
+- `test_incremental_update_matches_full_reindex_for_inserts_on_both_edges_of_one_chunk`
 - `test_incremental_update_matches_full_reindex_for_edits_in_separate_paragraphs`
 - `test_term_removed_by_edit_leaves_term_documents`
 - `test_term_added_by_edit_joins_term_documents`
@@ -411,6 +418,8 @@ Each "matches full reindex" test compares the updated `IndexedDocument` with a f
 - `test_update_with_matching_base_version_uses_incremental_path` (check the result with a search)
 - `test_update_with_other_base_version_reindexes_document`
 - `test_update_recovers_when_incremental_update_raises` (monkeypatch `update_indexed_document` to raise; the document is still searchable at its new text)
+- `test_update_logs_and_continues_when_full_reindex_also_fails` (monkeypatch both to raise; no exception escapes, and the error is logged)
+- `test_add_document_failure_does_not_raise`
 
 ### `tests/api/test_search_api.py`
 
@@ -421,12 +430,17 @@ Each "matches full reindex" test compares the updated `IndexedDocument` with a f
 - `test_document_search_for_missing_document_returns_404`
 - `test_empty_query_returns_422_invalid_query` (`q=""` fails validation; a query of only punctuation, `q=%22%22`, returns `invalid_query`. Assert each `error_type`.)
 - `test_query_over_maximum_length_returns_validation_error`
+- `test_malformed_document_id_filter_returns_validation_error`
+- `test_limit_above_maximum_returns_validation_error`
+- `test_page_past_end_keeps_total_count`
 - `test_highlight_offsets_point_at_the_matched_text` (slice the document text at each highlight and check the word)
 - `test_index_is_built_from_database_at_startup`: commit a document through a separate connection (not the rolled-back one), start a fresh client, search for it, then delete it in a `finally` block. This is the one test that commits, because the startup path reads committed data. Use a unique title, and assert only on that document.
 
 ### `tests/large_documents/test_large_search.py`
 
-- `test_incremental_update_matches_full_reindex_on_large_document`: index the 10MB contract, apply the 1,000-change batch from Phase 1, run `update_indexed_document`, and compare with `index_document` of the result.
+- `test_incremental_update_matches_full_reindex_on_large_document`: index the 10MB contract, apply the 1,000-change batch from `build_spread_changes`, run `update_indexed_document`, and compare with `index_document` of the result.
+
+Move `build_spread_changes` (and the constants it uses) from `tests/large_documents/test_large_edits.py` into `tests/fixtures/large_contract.py`, and import it from there in both test modules. Tests don't import from other test modules.
 - `test_phrase_near_end_of_large_document_is_found` (with the highlight offset checked against the text)
 
 ## 14. Design notes (for the README)

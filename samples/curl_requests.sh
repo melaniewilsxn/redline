@@ -176,5 +176,26 @@ require_error_type "document_not_found"
 call_api "11a. List versions" 200 "$BASE_URL/documents/$document_id/versions"
 call_api "11b. Get version 1" 200 "$BASE_URL/documents/$document_id/versions/1"
 
+call_api "12. Search for a word" 200 \
+  --get "$BASE_URL/search" --data-urlencode "q=Customer"
+
+call_api "13. Search for two words" 200 \
+  --get "$BASE_URL/search" --data-urlencode "q=Customer invoice"
+
+call_api "14. Search for a phrase" 200 \
+  --get "$BASE_URL/search" --data-urlencode 'q="pay the invoice"'
+
+call_api "15. Search selected documents" 200 \
+  --get "$BASE_URL/search" \
+  --data-urlencode "q=Customer" \
+  --data-urlencode "document_ids=$document_id"
+
+call_api "16. Search inside one document" 200 \
+  --get "$BASE_URL/documents/$document_id/search" --data-urlencode "q=Customer"
+
+call_api "17. Query with no words" 422 \
+  --get "$BASE_URL/search" --data-urlencode 'q=""'
+require_error_type "invalid_query"
+
 echo
 echo "Curl walkthrough finished."

@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import asdict
 from http import HTTPStatus
 
 import httpx
@@ -6,39 +7,55 @@ from fastapi.testclient import TestClient
 from psycopg import Connection
 
 from redline.api.dependencies import get_connection
-from redline.api.schemas import ErrorType
+from redline.api.schemas import (
+    ApplyChangesRequest,
+    ChangeRequest,
+    ChangeTargetType,
+    ContextTargetRequest,
+    CreateDocumentRequest,
+    ErrorType,
+    OccurrenceTargetRequest,
+    RangeTargetRequest,
+)
 
 CONTRACT = "Alpha. The Customer shall pay. Beta. The Customer shall wait."
+DOCUMENT_TITLE = "Notes"
+DOCUMENT_AUTHOR = "Ada"
 
 
-def post_document(
-    client: TestClient, title: str = "Notes", text: str = CONTRACT, author: str = "Ada"
-) -> httpx.Response:
+def post_document(client: TestClient, title: str, text: str, author: str) -> httpx.Response:
     """Create a document through the API."""
-    return client.post(
-        "/documents",
-        json={"title": title, "text": text, "author": author},
-    )
+    request = CreateDocumentRequest(title=title, text=text, author=author)
+    return client.post("/documents", json=asdict(request))
 
 
 def patch_document(
     client: TestClient,
     document_id: str,
     etag: str,
-    changes: list[dict[str, object]],
-    author: str = "Ada",
+    changes: list[ChangeRequest],
+    author: str,
 ) -> httpx.Response:
     """Apply changes with If-Match."""
+    request = ApplyChangesRequest(author=author, changes=changes)
     return client.patch(
         f"/documents/{document_id}",
         headers={"If-Match": etag},
-        json={"author": author, "changes": changes},
+        json=asdict(request),
+    )
+
+
+def range_change(start: int, end: int, replacement: str) -> ChangeRequest:
+    """Build a range change request."""
+    return ChangeRequest(
+        target=RangeTargetRequest(type=ChangeTargetType.RANGE, start=start, end=end),
+        replacement=replacement,
     )
 
 
 def test_create_document_returns_201_with_etag_and_location(client: TestClient) -> None:
     """Creating a document returns 201, an ETag, and a Location header."""
-    response = post_document(client, text="Hello")
+    response = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR)
 
     body = response.json()
     assert response.status_code == HTTPStatus.CREATED
@@ -51,7 +68,7 @@ def test_create_document_returns_201_with_etag_and_location(client: TestClient) 
 
 def test_create_document_with_empty_title_returns_validation_error(client: TestClient) -> None:
     """An empty title is rejected as a validation error."""
-    response = post_document(client, title="")
+    response = post_document(client, "", CONTRACT, DOCUMENT_AUTHOR)
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_CONTENT
     assert response.json()["error_type"] == ErrorType.VALIDATION_ERROR
@@ -60,7 +77,7 @@ def test_create_document_with_empty_title_returns_validation_error(client: TestC
 
 def test_get_document_returns_text_and_etag(client: TestClient) -> None:
     """Reading a document returns its text and ETag."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
     response = client.get(f"/documents/{created['id']}")
 
@@ -88,7 +105,7 @@ def test_get_document_with_malformed_id_returns_validation_error(client: TestCli
 
 def test_list_documents_includes_created_document(client: TestClient) -> None:
     """The document list includes a document created in this test."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
     response = client.get("/documents")
 
@@ -110,14 +127,15 @@ def test_list_documents_with_limit_above_maximum_returns_validation_error(
 
 def test_patch_with_range_target_returns_updated_text_and_new_etag(client: TestClient) -> None:
     """A range replacement updates the text and returns a new ETag."""
-    created = post_document(client, text="abcdefghij").json()
+    created = post_document(client, DOCUMENT_TITLE, "abcdefghij", DOCUMENT_AUTHOR).json()
     etag = f'"{created["id"]}-1"'
 
     response = patch_document(
         client,
         created["id"],
         etag,
-        [{"target": {"type": "range", "start": 0, "end": 4}, "replacement": "XYZ"}],
+        [range_change(0, 4, "XYZ")],
+        DOCUMENT_AUTHOR,
     )
 
     body = response.json()
@@ -129,18 +147,26 @@ def test_patch_with_range_target_returns_updated_text_and_new_etag(client: TestC
 
 def test_patch_with_occurrence_target_replaces_that_occurrence(client: TestClient) -> None:
     """An occurrence target replaces that match and leaves the earlier one."""
-    created = post_document(client, text="The Seller shall pay. The Seller shall wait.").json()
+    created = post_document(
+        client,
+        DOCUMENT_TITLE,
+        "The Seller shall pay. The Seller shall wait.",
+        DOCUMENT_AUTHOR,
+    ).json()
 
     response = patch_document(
         client,
         created["id"],
         f'"{created["id"]}-1"',
         [
-            {
-                "target": {"type": "occurrence", "text": "Seller", "occurrence": 2},
-                "replacement": "Vendor",
-            }
+            ChangeRequest(
+                target=OccurrenceTargetRequest(
+                    type=ChangeTargetType.OCCURRENCE, text="Seller", occurrence=2
+                ),
+                replacement="Vendor",
+            )
         ],
+        DOCUMENT_AUTHOR,
     )
 
     assert response.json()["document"]["text"] == "The Seller shall pay. The Vendor shall wait."
@@ -148,23 +174,24 @@ def test_patch_with_occurrence_target_replaces_that_occurrence(client: TestClien
 
 def test_patch_with_context_target_replaces_matching_phrase(client: TestClient) -> None:
     """A context target replaces the phrase between its prefix and suffix."""
-    created = post_document(client).json()
+    created = post_document(client, DOCUMENT_TITLE, CONTRACT, DOCUMENT_AUTHOR).json()
 
     response = patch_document(
         client,
         created["id"],
         f'"{created["id"]}-1"',
         [
-            {
-                "target": {
-                    "type": "context",
-                    "text": "The Customer shall",
-                    "prefix": "Beta. ",
-                    "suffix": " wait.",
-                },
-                "replacement": "The Customer must",
-            }
+            ChangeRequest(
+                target=ContextTargetRequest(
+                    type=ChangeTargetType.CONTEXT,
+                    text="The Customer shall",
+                    prefix="Beta. ",
+                    suffix=" wait.",
+                ),
+                replacement="The Customer must",
+            )
         ],
+        DOCUMENT_AUTHOR,
     )
 
     assert (
@@ -175,16 +202,17 @@ def test_patch_with_context_target_replaces_matching_phrase(client: TestClient) 
 
 def test_patch_batch_reports_applied_edits_in_pre_batch_offsets(client: TestClient) -> None:
     """Applied edits keep the offsets from before the batch, in position order."""
-    created = post_document(client, text="abcdefghij").json()
+    created = post_document(client, DOCUMENT_TITLE, "abcdefghij", DOCUMENT_AUTHOR).json()
 
     response = patch_document(
         client,
         created["id"],
         f'"{created["id"]}-1"',
         [
-            {"target": {"type": "range", "start": 6, "end": 8}, "replacement": "XY"},
-            {"target": {"type": "range", "start": 1, "end": 3}, "replacement": "Q"},
+            range_change(6, 8, "XY"),
+            range_change(1, 3, "Q"),
         ],
+        DOCUMENT_AUTHOR,
     )
 
     body = response.json()
@@ -199,15 +227,10 @@ def test_patch_batch_reports_applied_edits_in_pre_batch_offsets(client: TestClie
 
 def test_patch_without_if_match_returns_428(client: TestClient) -> None:
     """A patch with no If-Match header returns 428."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
-    response = client.patch(
-        f"/documents/{created['id']}",
-        json={
-            "author": "Ada",
-            "changes": [{"target": {"type": "range", "start": 0, "end": 1}, "replacement": "J"}],
-        },
-    )
+    request = ApplyChangesRequest(author=DOCUMENT_AUTHOR, changes=[range_change(0, 1, "J")])
+    response = client.patch(f"/documents/{created['id']}", json=asdict(request))
 
     assert response.status_code == HTTPStatus.PRECONDITION_REQUIRED
     assert response.json()["error_type"] == ErrorType.PRECONDITION_REQUIRED
@@ -216,13 +239,14 @@ def test_patch_without_if_match_returns_428(client: TestClient) -> None:
 
 def test_patch_with_stale_if_match_returns_412(client: TestClient) -> None:
     """An If-Match for a version that was never current returns 412."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
     response = patch_document(
         client,
         created["id"],
         f'"{created["id"]}-9"',
-        [{"target": {"type": "range", "start": 0, "end": 1}, "replacement": "J"}],
+        [range_change(0, 1, "J")],
+        DOCUMENT_AUTHOR,
     )
 
     assert response.status_code == HTTPStatus.PRECONDITION_FAILED
@@ -231,14 +255,15 @@ def test_patch_with_stale_if_match_returns_412(client: TestClient) -> None:
 
 def test_patch_with_other_documents_etag_returns_412(client: TestClient) -> None:
     """An ETag that names a different document returns 412."""
-    first = post_document(client, text="Hello").json()
-    second = post_document(client, text="Hello").json()
+    first = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
+    second = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
     response = patch_document(
         client,
         second["id"],
         f'"{first["id"]}-1"',
-        [{"target": {"type": "range", "start": 0, "end": 1}, "replacement": "J"}],
+        [range_change(0, 1, "J")],
+        DOCUMENT_AUTHOR,
     )
 
     assert response.status_code == HTTPStatus.PRECONDITION_FAILED
@@ -247,12 +272,12 @@ def test_patch_with_other_documents_etag_returns_412(client: TestClient) -> None
 
 def test_second_patch_with_same_if_match_returns_412(client: TestClient) -> None:
     """Reusing an ETag after a successful write returns 412."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
     etag = f'"{created["id"]}-1"'
-    change = [{"target": {"type": "range", "start": 0, "end": 1}, "replacement": "J"}]
-    first = patch_document(client, created["id"], etag, change)
+    change = [range_change(0, 1, "J")]
+    first = patch_document(client, created["id"], etag, change, DOCUMENT_AUTHOR)
 
-    second = patch_document(client, created["id"], etag, change)
+    second = patch_document(client, created["id"], etag, change, DOCUMENT_AUTHOR)
 
     assert first.status_code == HTTPStatus.OK
     assert second.status_code == HTTPStatus.PRECONDITION_FAILED
@@ -261,16 +286,17 @@ def test_second_patch_with_same_if_match_returns_412(client: TestClient) -> None
 
 def test_patch_with_overlapping_changes_returns_422_overlapping_changes(client: TestClient) -> None:
     """Overlapping ranges reject the whole batch."""
-    created = post_document(client, text="abcdefghij").json()
+    created = post_document(client, DOCUMENT_TITLE, "abcdefghij", DOCUMENT_AUTHOR).json()
 
     response = patch_document(
         client,
         created["id"],
         f'"{created["id"]}-1"',
         [
-            {"target": {"type": "range", "start": 0, "end": 4}, "replacement": "A"},
-            {"target": {"type": "range", "start": 2, "end": 6}, "replacement": "B"},
+            range_change(0, 4, "A"),
+            range_change(2, 6, "B"),
         ],
+        DOCUMENT_AUTHOR,
     )
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_CONTENT
@@ -280,18 +306,21 @@ def test_patch_with_overlapping_changes_returns_422_overlapping_changes(client: 
 
 def test_patch_with_missing_text_returns_422_target_not_found(client: TestClient) -> None:
     """Text that is not in the document returns target_not_found."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
     response = patch_document(
         client,
         created["id"],
         f'"{created["id"]}-1"',
         [
-            {
-                "target": {"type": "occurrence", "text": "missing", "occurrence": 1},
-                "replacement": "x",
-            }
+            ChangeRequest(
+                target=OccurrenceTargetRequest(
+                    type=ChangeTargetType.OCCURRENCE, text="missing", occurrence=1
+                ),
+                replacement="x",
+            )
         ],
+        DOCUMENT_AUTHOR,
     )
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_CONTENT
@@ -300,18 +329,21 @@ def test_patch_with_missing_text_returns_422_target_not_found(client: TestClient
 
 def test_patch_with_ambiguous_context_returns_422_ambiguous_target(client: TestClient) -> None:
     """A context target that matches twice returns ambiguous_target."""
-    created = post_document(client, text="Hello Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello Hello", DOCUMENT_AUTHOR).json()
 
     response = patch_document(
         client,
         created["id"],
         f'"{created["id"]}-1"',
         [
-            {
-                "target": {"type": "context", "text": "Hello", "prefix": "", "suffix": ""},
-                "replacement": "Hi",
-            }
+            ChangeRequest(
+                target=ContextTargetRequest(
+                    type=ChangeTargetType.CONTEXT, text="Hello", prefix="", suffix=""
+                ),
+                replacement="Hi",
+            )
         ],
+        DOCUMENT_AUTHOR,
     )
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_CONTENT
@@ -320,13 +352,14 @@ def test_patch_with_ambiguous_context_returns_422_ambiguous_target(client: TestC
 
 def test_patch_with_invalid_range_returns_422_invalid_target(client: TestClient) -> None:
     """A range whose start is after its end returns invalid_target."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
     response = patch_document(
         client,
         created["id"],
         f'"{created["id"]}-1"',
-        [{"target": {"type": "range", "start": 4, "end": 1}, "replacement": "x"}],
+        [range_change(4, 1, "x")],
+        DOCUMENT_AUTHOR,
     )
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_CONTENT
@@ -335,13 +368,14 @@ def test_patch_with_invalid_range_returns_422_invalid_target(client: TestClient)
 
 def test_patch_with_range_past_end_returns_422_range_out_of_bounds(client: TestClient) -> None:
     """A range that ends past the document returns range_out_of_bounds."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
     response = patch_document(
         client,
         created["id"],
         f'"{created["id"]}-1"',
-        [{"target": {"type": "range", "start": 0, "end": 100}, "replacement": "x"}],
+        [range_change(0, 100, "x")],
+        DOCUMENT_AUTHOR,
     )
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_CONTENT
@@ -350,9 +384,9 @@ def test_patch_with_range_past_end_returns_422_range_out_of_bounds(client: TestC
 
 def test_patch_with_empty_changes_returns_validation_error(client: TestClient) -> None:
     """A patch with no changes is a validation error."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
-    response = patch_document(client, created["id"], f'"{created["id"]}-1"', [])
+    response = patch_document(client, created["id"], f'"{created["id"]}-1"', [], DOCUMENT_AUTHOR)
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_CONTENT
     assert response.json()["error_type"] == ErrorType.VALIDATION_ERROR
@@ -360,13 +394,16 @@ def test_patch_with_empty_changes_returns_validation_error(client: TestClient) -
 
 def test_patch_with_unknown_target_type_returns_validation_error(client: TestClient) -> None:
     """An unknown target type is a validation error."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
-    response = patch_document(
-        client,
-        created["id"],
-        f'"{created["id"]}-1"',
-        [{"target": {"type": "nope", "text": "Hello"}, "replacement": "x"}],
+    # Raw dict: "nope" is not a ChangeTargetType, so it cannot be built as a request dataclass.
+    response = client.patch(
+        f"/documents/{created['id']}",
+        headers={"If-Match": f'"{created["id"]}-1"'},
+        json={
+            "author": DOCUMENT_AUTHOR,
+            "changes": [{"target": {"type": "nope", "text": "Hello"}, "replacement": "x"}],
+        },
     )
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_CONTENT
@@ -382,7 +419,8 @@ def test_patch_missing_document_returns_404(client: TestClient) -> None:
         client,
         str(document_id),
         f'"{document_id}-1"',
-        [{"target": {"type": "range", "start": 0, "end": 1}, "replacement": "J"}],
+        [range_change(0, 1, "J")],
+        DOCUMENT_AUTHOR,
     )
 
     assert response.status_code == HTTPStatus.NOT_FOUND
@@ -391,12 +429,13 @@ def test_patch_missing_document_returns_404(client: TestClient) -> None:
 
 def test_list_versions_after_patch_shows_both_versions(client: TestClient) -> None:
     """After a patch, both versions are listed with the newest first."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
     patch_document(
         client,
         created["id"],
         f'"{created["id"]}-1"',
-        [{"target": {"type": "range", "start": 0, "end": 1}, "replacement": "J"}],
+        [range_change(0, 1, "J")],
+        DOCUMENT_AUTHOR,
     )
 
     response = client.get(f"/documents/{created['id']}/versions")
@@ -407,12 +446,13 @@ def test_list_versions_after_patch_shows_both_versions(client: TestClient) -> No
 
 def test_get_version_one_after_patch_returns_original_text(client: TestClient) -> None:
     """Version 1 still has the text from before the patch."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
     patch_document(
         client,
         created["id"],
         f'"{created["id"]}-1"',
-        [{"target": {"type": "range", "start": 0, "end": 1}, "replacement": "J"}],
+        [range_change(0, 1, "J")],
+        DOCUMENT_AUTHOR,
     )
 
     response = client.get(f"/documents/{created['id']}/versions/1")
@@ -424,7 +464,7 @@ def test_get_version_one_after_patch_returns_original_text(client: TestClient) -
 
 def test_get_missing_version_returns_404_version_not_found(client: TestClient) -> None:
     """A version number the document does not have returns version_not_found."""
-    created = post_document(client, text="Hello").json()
+    created = post_document(client, DOCUMENT_TITLE, "Hello", DOCUMENT_AUTHOR).json()
 
     response = client.get(f"/documents/{created['id']}/versions/9")
 
