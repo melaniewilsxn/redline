@@ -368,9 +368,6 @@ function renderSuggestionParts(
   let originalOffset = suggestion.start;
   for (let index = 0; index < parts.length; index += 1) {
     const part = parts[index];
-    if (part === undefined) {
-      continue;
-    }
     if (part.kind === SuggestionPartKind.Added) {
       views.push(renderAddedPart(suggestion.status, part.text, index));
       continue;
@@ -388,12 +385,6 @@ function renderSuggestionParts(
   return views;
 }
 
-/**
- * Choose the deletion classes for one suggestion status.
- * @param status - The reviewer's decision.
- * @returns The class list.
- * @throws Does not throw.
- */
 interface MarkedRun {
   text: string;
   highlighted: boolean;
@@ -604,8 +595,8 @@ function buildMarkedRuns(
   const ordered = [...edges].sort((left, right) => left - right);
   const runs: MarkedRun[] = [];
   for (let index = 0; index < ordered.length - 1; index += 1) {
-    const start = ordered[index] ?? documentStart;
-    const end = ordered[index + 1] ?? documentEnd;
+    const start = ordered[index];
+    const end = ordered[index + 1];
     const highlighted = highlights.some(
       (highlight) => highlight.start <= start && end <= highlight.end,
     );
