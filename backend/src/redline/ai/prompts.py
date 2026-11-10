@@ -11,7 +11,15 @@ PREFIX_FIELD = "prefix"
 SUFFIX_FIELD = "suffix"
 REPLACEMENT_FIELD = "replacement"
 RATIONALE_FIELD = "rationale"
-SUGGESTION_FIELDS = (TEXT_FIELD, PREFIX_FIELD, SUFFIX_FIELD, REPLACEMENT_FIELD, RATIONALE_FIELD)
+TITLE_FIELD = "title"
+SUGGESTION_FIELDS = (
+    TEXT_FIELD,
+    PREFIX_FIELD,
+    SUFFIX_FIELD,
+    REPLACEMENT_FIELD,
+    RATIONALE_FIELD,
+    TITLE_FIELD,
+)
 # External JSON Schema sent to the model. Nested dictionaries are the schema format.
 SUGGESTIONS_SCHEMA: dict[str, object] = {
     "type": "object",
@@ -30,6 +38,7 @@ SUGGESTIONS_SCHEMA: dict[str, object] = {
                     SUFFIX_FIELD: {"type": "string"},
                     REPLACEMENT_FIELD: {"type": "string"},
                     RATIONALE_FIELD: {"type": "string"},
+                    TITLE_FIELD: {"type": "string", "minLength": 1},
                 },
             },
         }
@@ -52,6 +61,9 @@ replacement is the new text for that span. An empty replacement deletes the span
 
 rationale is one or two sentences a partner would read.
 Name the playbook topic when one applies.
+
+title is 2 to 6 words in sentence case naming the change,
+for example "Make the indemnity mutual" or "Cap liability at 12 months' fees".
 
 Suggest only changes the instruction or the playbook calls for.
 Never delete or weaken a right, remedy, or protection that benefits the represented party

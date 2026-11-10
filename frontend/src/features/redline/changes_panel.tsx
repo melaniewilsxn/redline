@@ -22,6 +22,7 @@ const NETWORK_STATUS = 0;
 
 /**
  * The review column: the composer, the suggestions, and the apply bar.
+ * @param contractOpen - Whether a contract is open.
  * @param suggestions - The open suggestions, or none.
  * @param dropped - Suggestions that could not be placed.
  * @param activeSuggestionId - The suggestion the keyboard is on.
@@ -45,6 +46,7 @@ const NETWORK_STATUS = 0;
  * @throws Does not throw.
  */
 export function ChangesPanel({
+  contractOpen,
   suggestions,
   dropped,
   activeSuggestionId,
@@ -65,6 +67,7 @@ export function ChangesPanel({
   onApply,
   onDiscard,
 }: {
+  contractOpen: boolean;
   suggestions: ReviewSuggestion[] | null;
   dropped: DroppedSuggestionResponse[];
   activeSuggestionId: string | null;
@@ -132,13 +135,16 @@ export function ChangesPanel({
             <DroppedSuggestions dropped={dropped} />
           </>
         ) : null}
-        {!reviewing && suggestions === null && suggestError === null ? (
+        {!reviewing && suggestions === null && suggestError === null && contractOpen ? (
           <RedlineComposer
             instruction={instruction}
             instructionMissing={instructionMissing}
             onInstructionChange={onInstructionChange}
             onSubmit={onSubmitInstruction}
           />
+        ) : null}
+        {!reviewing && suggestions === null && suggestError === null && !contractOpen ? (
+          <p className={styles.closedNote}>Open a contract to ask Claude for redlines.</p>
         ) : null}
       </div>
       {suggestions !== null && !reviewing ? (

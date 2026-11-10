@@ -46,6 +46,7 @@ def place_suggestion(
             text=suggestion.text,
             replacement=suggestion.replacement,
             rationale=suggestion.rationale,
+            title=suggestion.title,
             reason=DroppedSuggestionReason.EMPTY_TARGET,
         )
     if suggestion.replacement == suggestion.text:
@@ -54,6 +55,7 @@ def place_suggestion(
             text=suggestion.text,
             replacement=suggestion.replacement,
             rationale=suggestion.rationale,
+            title=suggestion.title,
             reason=DroppedSuggestionReason.NO_CHANGE,
         )
     try:
@@ -64,6 +66,7 @@ def place_suggestion(
             text=suggestion.text,
             replacement=suggestion.replacement,
             rationale=suggestion.rationale,
+            title=suggestion.title,
             reason=DroppedSuggestionReason.TARGET_NOT_FOUND,
         )
     except AmbiguousTargetError:
@@ -72,6 +75,7 @@ def place_suggestion(
             text=suggestion.text,
             replacement=suggestion.replacement,
             rationale=suggestion.rationale,
+            title=suggestion.title,
             reason=DroppedSuggestionReason.AMBIGUOUS_TARGET,
         )
     return AnchoredSuggestion(
@@ -80,6 +84,7 @@ def place_suggestion(
         original_text=text[span.start : span.end],
         replacement=suggestion.replacement,
         rationale=suggestion.rationale,
+        title=suggestion.title,
     )
 
 
@@ -114,6 +119,7 @@ def drop_overlaps(
                     text=suggestion.original_text,
                     replacement=suggestion.replacement,
                     rationale=suggestion.rationale,
+                    title=suggestion.title,
                     reason=DroppedSuggestionReason.OVERLAPS_EARLIER_SUGGESTION,
                 )
             )

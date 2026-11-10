@@ -3,7 +3,7 @@ import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 
 import { ApiError } from "./api/client.ts";
 import { REVIEWER_NAME, applyChanges } from "./api/endpoints.ts";
-import { ApiErrorType, type ChangeRequest } from "./api/types.ts";
+import { ApiErrorType, type ChangeRequest, type TextSpanResponse } from "./api/types.ts";
 import { ThemeToggle } from "./components/theme_toggle.tsx";
 import { Toast } from "./components/toast.tsx";
 import { Wordmark } from "./components/wordmark.tsx";
@@ -37,8 +37,9 @@ interface ApplyRequest {
 
 interface SearchJump {
   documentId: string;
-  start: number;
-  end: number;
+  highlights: TextSpanResponse[];
+  focusStart: number;
+  focusEnd: number;
 }
 
 /**
@@ -126,7 +127,11 @@ export function App(): ReactNode {
             <Wordmark onSelectHome={closeDocument} />
             <ThemeToggle theme={theme} onCycle={cycleTheme} />
           </div>
-          <SearchBox query={searchQuery} inputRef={searchInputRef} onQueryChange={setSearchQuery} />
+          <SearchBox
+            query={searchQuery}
+            inputRef={searchInputRef}
+            onQueryChange={changeSearchQuery}
+          />
           <div className={styles.railBody}>
             {search.searching ? (
               <SearchResults
@@ -148,8 +153,10 @@ export function App(): ReactNode {
           suggestions={suggestions ?? []}
           activeSuggestionId={review?.activeSuggestionId ?? null}
           hoveredSuggestionId={hoveredSuggestionId}
-          jumpStart={jumpForDocument?.start ?? null}
-          jumpEnd={jumpForDocument?.end ?? null}
+          jumpStart={jumpForDocument?.focusStart ?? null}
+          persistedHighlights={jumpForDocument?.highlights ?? []}
+          focusStart={jumpForDocument?.focusStart ?? null}
+          focusEnd={jumpForDocument?.focusEnd ?? null}
           loading={selectedDocumentId !== null && openDocument.isLoading}
           failed={openDocument.isError}
           onSelectSuggestion={(suggestionId) =>
@@ -158,6 +165,7 @@ export function App(): ReactNode {
           onHoverSuggestion={setHoveredSuggestionId}
         />
         <ChangesPanel
+          contractOpen={selectedDocumentId !== null}
           suggestions={suggestions}
           dropped={review?.dropped ?? []}
           activeSuggestionId={review?.activeSuggestionId ?? null}
@@ -227,13 +235,30 @@ export function App(): ReactNode {
    * @param end - The match end.
    * @throws Does not throw.
    */
-  function openMatch(documentId: string, start: number, end: number): void {
+  function openMatch(
+    documentId: string,
+    highlights: TextSpanResponse[],
+    focusStart: number,
+    focusEnd: number,
+  ): void {
     if (documentId !== selectedDocumentId) {
       discardReview();
       setInstruction("");
     }
     setSelectedDocumentId(documentId);
-    setJump({ documentId, start, end });
+    setJump({ documentId, highlights, focusStart, focusEnd });
+  }
+
+  /**
+   * Store the rail search, and drop kept matches when it is cleared.
+   * @param query - The text in the search field.
+   * @throws Does not throw.
+   */
+  function changeSearchQuery(query: string): void {
+    setSearchQuery(query);
+    if (query.trim() === "") {
+      setJump(null);
+    }
   }
 
   /**
@@ -250,6 +275,7 @@ export function App(): ReactNode {
     setInstruction(trimmed);
     setInstructionMissing(false);
     setApplyNote("");
+    setJump(null);
     suggest.mutate(
       { documentId: selectedDocumentId, instruction: trimmed },
       {
@@ -371,7 +397,7 @@ export function App(): ReactNode {
    */
   function clearSearchOrComposer(): void {
     if (searchQuery !== "") {
-      setSearchQuery("");
+      changeSearchQuery("");
       return;
     }
     if (review === null) {

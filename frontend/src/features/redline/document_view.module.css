@@ -138,12 +138,6 @@
   opacity: 0;
 }
 
-.plain {
-  color: inherit;
-  background: transparent;
-  text-decoration: none;
-}
-
 .acceptedText {
   color: var(--accept);
   background: var(--accept-bg);
@@ -161,16 +155,28 @@
   background: var(--search-highlight);
 }
 
+.focusedMark {
+  outline: 1.5px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
 .pulse {
   animation: pulse 600ms var(--ease-out);
 }
 
 @keyframes pulse {
   from {
-    background: var(--search-highlight);
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
   }
   to {
-    background: transparent;
+    outline-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
   }
 }
 

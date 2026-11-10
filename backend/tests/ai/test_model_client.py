@@ -35,6 +35,7 @@ SUGGESTION_JSON = {
     "suffix": " the",
     "replacement": "defend",
     "rationale": "Mutual indemnity.",
+    "title": "Make the indemnity mutual",
 }
 
 
@@ -174,6 +175,17 @@ def test_parse_suggestions_with_invalid_json_raises_model_response_error() -> No
         parse_suggestions("not json")
 
     assert raised.value.reason == ModelResponseFailure.INVALID_JSON
+
+
+def test_parse_suggestions_with_empty_title_raises_model_response_error() -> None:
+    """A suggestion with an empty title is rejected."""
+    suggestion = dict(SUGGESTION_JSON)
+    suggestion["title"] = ""
+
+    with pytest.raises(ModelResponseError) as raised:
+        parse_suggestions(json.dumps({"suggestions": [suggestion]}))
+
+    assert raised.value.reason == ModelResponseFailure.MISSING_FIELD
 
 
 def test_parse_suggestions_with_missing_field_raises_model_response_error() -> None:

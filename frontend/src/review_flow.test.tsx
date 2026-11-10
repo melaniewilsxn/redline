@@ -14,6 +14,37 @@ const SHALL_END = 18;
 const INDEMNIFY_START = 19;
 const INDEMNIFY_END = 28;
 
+interface ReviewSuggestionResponse {
+  suggestion_id: string;
+  start: number;
+  end: number;
+  original_text: string;
+  replacement: string;
+  rationale: string;
+  title: string;
+}
+
+const SHALL_SUGGESTION: ReviewSuggestionResponse = {
+  suggestion_id: "s1",
+  start: SHALL_START,
+  end: SHALL_END,
+  original_text: "shall",
+  replacement: "will",
+  rationale: "Prefer will.",
+  title: "Prefer will",
+};
+const INDEMNIFY_SUGGESTION: ReviewSuggestionResponse = {
+  suggestion_id: "s2",
+  start: INDEMNIFY_START,
+  end: INDEMNIFY_END,
+  original_text: "indemnify",
+  replacement: "compensate",
+  rationale: "Soften the duty.",
+  title: "Soften the duty",
+};
+const PLAYBOOK_SUGGESTIONS = [SHALL_SUGGESTION, INDEMNIFY_SUGGESTION];
+const ONE_WORD_SUGGESTIONS = [SHALL_SUGGESTION];
+
 interface CapturedRequest {
   url: string;
   method: string;
@@ -40,10 +71,14 @@ function renderApp() {
 /**
  * Stub fetch for the review flow and record every request.
  * @param applyStatus - The status the apply request returns.
+ * @param suggestions - The suggestions the review returns.
  * @returns The recorded requests.
  * @throws Does not throw.
  */
-function installFetch(applyStatus: number): CapturedRequest[] {
+function installFetch(
+  applyStatus: number,
+  suggestions: ReviewSuggestionResponse[],
+): CapturedRequest[] {
   const requests: CapturedRequest[] = [];
   vi.stubGlobal(
     "fetch",
@@ -57,29 +92,15 @@ function installFetch(applyStatus: number): CapturedRequest[] {
         body: typeof init?.body === "string" ? init.body : null,
         ifMatch: headers.get("If-Match"),
       });
+      if (url.includes("/search")) {
+        return Response.json({ hits: [], total_count: 0, limit: 20, offset: 0 });
+      }
       if (url.includes("/ai-redlines")) {
         return Response.json(
           {
             document_id: DOCUMENT_ID,
             version: 1,
-            suggestions: [
-              {
-                suggestion_id: "s1",
-                start: SHALL_START,
-                end: SHALL_END,
-                original_text: "shall",
-                replacement: "will",
-                rationale: "Prefer will.",
-              },
-              {
-                suggestion_id: "s2",
-                start: INDEMNIFY_START,
-                end: INDEMNIFY_END,
-                original_text: "indemnify",
-                replacement: "compensate",
-                rationale: "Soften the duty.",
-              },
-            ],
+            suggestions,
             dropped: [],
           },
           { headers: { ETag: ETAG } },
@@ -150,7 +171,7 @@ afterEach(() => {
 
 describe("review flow", () => {
   it("reviewer accepts one suggestion, rejects one, and applies", async () => {
-    const requests = installFetch(200);
+    const requests = installFetch(200, PLAYBOOK_SUGGESTIONS);
     const user = userEvent.setup();
     renderApp();
     await openPlaybookReview();
@@ -176,8 +197,55 @@ describe("review flow", () => {
     });
   });
 
+  it("a pending suggestion that changes one word shows exactly one del and one ins", async () => {
+    installFetch(200, ONE_WORD_SUGGESTIONS);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(await screen.findByRole("button", { name: /Services agreement/ }));
+    await user.click(await screen.findByRole("button", { name: "Review against our playbook" }));
+    await screen.findByRole("heading", { name: "Prefer will" });
+
+    expect(document.querySelectorAll("del")).toHaveLength(1);
+    expect(document.querySelectorAll("ins")).toHaveLength(1);
+    expect(document.querySelector("del")?.textContent).toBe("shall");
+    expect(document.querySelector("ins")?.textContent).toBe("will");
+  });
+
+  it("asks for an open contract before showing the composer", async () => {
+    installFetch(200, PLAYBOOK_SUGGESTIONS);
+    const user = userEvent.setup();
+    renderApp();
+
+    expect(
+      await screen.findByText("Open a contract to ask Claude for redlines."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Suggest redlines/ })).not.toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: /Services agreement/ }));
+
+    expect(await screen.findByRole("button", { name: /Suggest redlines/ })).toBeInTheDocument();
+    expect(
+      screen.queryByText("Open a contract to ask Claude for redlines."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows in-document match controls only while the field has a query", async () => {
+    installFetch(200, PLAYBOOK_SUGGESTIONS);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(await screen.findByRole("button", { name: /Services agreement/ }));
+
+    expect(screen.queryByRole("button", { name: "Previous" })).not.toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText("Search in this contract"), "shall");
+
+    expect(await screen.findByRole("button", { name: "Previous" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
+    expect(screen.getByText("0 matches")).toBeInTheDocument();
+  });
+
   it("stale review shows the changed-since banner", async () => {
-    installFetch(412);
+    installFetch(412, PLAYBOOK_SUGGESTIONS);
     const user = userEvent.setup();
     renderApp();
     await openPlaybookReview();

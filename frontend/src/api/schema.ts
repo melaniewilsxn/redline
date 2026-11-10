@@ -385,6 +385,8 @@ export interface components {
       replacement: string;
       /** Rationale */
       rationale: string;
+      /** Title */
+      title: string;
       reason: components["schemas"]["DroppedSuggestionReason"];
     };
     /** HTTPValidationError */
@@ -501,6 +503,8 @@ export interface components {
       replacement: string;
       /** Rationale */
       rationale: string;
+      /** Title */
+      title: string;
     };
     /**
      * TextSpanResponse

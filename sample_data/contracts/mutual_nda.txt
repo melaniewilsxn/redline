@@ -10,7 +10,7 @@ This mutual non-disclosure agreement is between Harbor Lane Analytics and the or
 
 3. Use and care
 
-The receiving party shall use confidential information only to evaluate the possible transaction. the Customer shall, where the Customer is the receiving party, limit access to people who need the information for that evaluation and who are bound by duties at least as protective as these. The receiving party shall protect the information with at least the care it uses for its own confidential information of similar importance, and in any event with reasonable care. The receiving party shall not reverse engineer samples except to the extent the law forbids that restriction.
+The receiving party shall use confidential information only to evaluate the possible transaction. The Customer shall, where the Customer is the receiving party, limit access to people who need the information for that evaluation and who are bound by duties at least as protective as these. The receiving party shall protect the information with at least the care it uses for its own confidential information of similar importance, and in any event with reasonable care. The receiving party shall not reverse engineer samples except to the extent the law forbids that restriction.
 
 
 4. Required disclosure
@@ -20,7 +20,7 @@ If a law or a court requires the receiving party to disclose confidential inform
 
 5. Return
 
-When the disclosing party asks, or when the discussions end, the receiving party shall return or destroy the confidential information, including copies, and shall confirm in writing that it has done so. The receiving party may keep one copy in the files of its outside counsel, and copies that an automatic backup keeps, so long as those copies stay subject to this agreement. the Customer shall not keep a working copy in a shared drive after the discussions end.
+When the disclosing party asks, or when the discussions end, the receiving party shall return or destroy the confidential information, including copies, and shall confirm in writing that it has done so. The receiving party may keep one copy in the files of its outside counsel, and copies that an automatic backup keeps, so long as those copies stay subject to this agreement. The Customer shall not keep a working copy in a shared drive after the discussions end.
 
 
 6. No warranty of the information
@@ -40,7 +40,7 @@ This agreement starts on the date of the last signature and the exchange of info
 
 9. Assignment and change of control
 
-A party may not assign this agreement without the other's written consent. A change of control of a party is an assignment. If the Customer goes through a change of control, Harbor Lane may end this agreement by written notice, and the Customer's duties of confidence continue for the remaining term. the Customer shall give notice of a change of control as soon as it may legally do so.
+A party may not assign this agreement without the other's written consent. A change of control of a party is an assignment. If the Customer goes through a change of control, Harbor Lane may end this agreement by written notice, and the Customer's duties of confidence continue for the remaining term. The Customer shall give notice of a change of control as soon as it may legally do so.
 
 
 10. Governing law
@@ -50,7 +50,7 @@ Delaware law governs this agreement, without its conflict-of-laws rules. The sta
 
 11. Termination for convenience
 
-Either party may terminate this agreement for convenience by written notice. Termination stops further disclosure. It does not release a party from a duty that arose before the notice, and it does not release the duties in sections 3, 5, and 7. the Customer shall still return or destroy information as section 5 requires.
+Either party may terminate this agreement for convenience by written notice. Termination stops further disclosure. It does not release a party from a duty that arose before the notice, and it does not release the duties in sections 3, 5, and 7. The Customer shall still return or destroy information as section 5 requires.
 
 
 12. General
@@ -59,32 +59,32 @@ This agreement is the whole agreement about its subject. A change must be in wri
 
 13. Residuals
 
-The receiving party may use general ideas, skills, and know-how that its people remember without notes after they have been exposed to confidential information. That right does not allow the receiving party to use or disclose the confidential information itself, and it does not allow the receiving party to copy the disclosing party's documents. the Customer shall not treat this section as permission to keep a private summary of the disclosing party's pricing or customer lists.
+The receiving party may use general ideas, skills, and know-how that its people remember without notes after they have been exposed to confidential information. That right does not allow the receiving party to use or disclose the confidential information itself, and it does not allow the receiving party to copy the disclosing party's documents. The Customer shall not treat this section as permission to keep a private summary of the disclosing party's pricing or customer lists.
 
 14. Compelled copies and regulators
 
-If a regulator asks the Customer for information that includes the disclosing party's confidential information, the Customer shall tell the disclosing party as soon as the law allows and shall ask the regulator to treat the information as confidential. the Customer shall keep a record of what it disclosed and shall give that record to the disclosing party on request. the Customer shall not volunteer more information than the regulator asked for.
+If a regulator asks the Customer for information that includes the disclosing party's confidential information, the Customer shall tell the disclosing party as soon as the law allows and shall ask the regulator to treat the information as confidential. The Customer shall keep a record of what it disclosed and shall give that record to the disclosing party on request. The Customer shall not volunteer more information than the regulator asked for.
 
 15. No solicitation of the evaluation team
 
-During the discussions and for six months after they end, the Customer shall not solicit an employee of the other party who took part in the evaluation, if the Customer first learned of that employee through the discussions. This section does not stop a party from hiring a person who answers a public advertisement that was not aimed at that person. the Customer shall tell its staffing team about this limit so a routine search does not breach it.
+During the discussions and for six months after they end, the Customer shall not solicit an employee of the other party who took part in the evaluation, if the Customer first learned of that employee through the discussions. This section does not stop a party from hiring a person who answers a public advertisement that was not aimed at that person. The Customer shall tell its staffing team about this limit so a routine search does not breach it.
 
 16. Public statements
 
-Neither party shall issue a press release about the discussions without the other's written consent. the Customer shall not mention the other party's name in a marketing document that describes the discussions. A party may make a disclosure that the securities laws require, and it shall, where the law allows, give the other party a chance to comment on the wording first. the Customer shall keep the fact of the discussions confidential to the same degree as the documents that were exchanged.
+Neither party shall issue a press release about the discussions without the other's written consent. The Customer shall not mention the other party's name in a marketing document that describes the discussions. A party may make a disclosure that the securities laws require, and it shall, where the law allows, give the other party a chance to comment on the wording first. The Customer shall keep the fact of the discussions confidential to the same degree as the documents that were exchanged.
 
 17. Export and location of copies
 
-the Customer shall not export confidential information, or a copy of it, in violation of export control law. the Customer shall keep copies in the country where the Customer received them unless the disclosing party agrees in writing to another location. If the Customer uses a cloud service to store the copies, the Customer shall choose a service that lets the Customer meet this section, and the Customer shall remain responsible for the service's handling of the copies.
+The Customer shall not export confidential information, or a copy of it, in violation of export control law. The Customer shall keep copies in the country where the Customer received them unless the disclosing party agrees in writing to another location. If the Customer uses a cloud service to store the copies, the Customer shall choose a service that lets the Customer meet this section, and the Customer shall remain responsible for the service's handling of the copies.
 
 18. Feedback
 
-If the Customer gives feedback about the other party's products, the other party may use that feedback without a duty to pay the Customer, and the Customer shall not assert an intellectual-property claim against that use. Feedback does not include the Customer's own confidential information, which stays protected. the Customer shall mark any material it does not intend as feedback, so the parties can tell the two apart.
+If the Customer gives feedback about the other party's products, the other party may use that feedback without a duty to pay the Customer, and the Customer shall not assert an intellectual-property claim against that use. Feedback does not include the Customer's own confidential information, which stays protected. The Customer shall mark any material it does not intend as feedback, so the parties can tell the two apart.
 
 19. Independent development
 
-Each party may develop products that compete with the other's products, so long as it does not use the other's confidential information to do so. the Customer shall not argue that the mere receipt of confidential information stops the other party from working on a product the other party already had in mind. A party who wants to show that it developed something independently shall keep dated records of that work. the Customer shall keep its evaluation notes separate from its product-design files so those records stay clear.
+Each party may develop products that compete with the other's products, so long as it does not use the other's confidential information to do so. The Customer shall not argue that the mere receipt of confidential information stops the other party from working on a product the other party already had in mind. A party who wants to show that it developed something independently shall keep dated records of that work. The Customer shall keep its evaluation notes separate from its product-design files so those records stay clear.
 
 20. Counterparts and headings
 
-The parties may sign this agreement in counterparts, and electronic signatures count as original signatures. Headings are for convenience only and do not change the meaning of a section. the Customer shall not rely on a heading to narrow a duty that the section itself states more broadly. A signed copy delivered by email is effective when the other party receives that copy.
+The parties may sign this agreement in counterparts, and electronic signatures count as original signatures. Headings are for convenience only and do not change the meaning of a section. The Customer shall not rely on a heading to narrow a duty that the section itself states more broadly. A signed copy delivered by email is effective when the other party receives that copy.

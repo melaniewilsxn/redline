@@ -30,6 +30,12 @@
   overflow: auto;
 }
 
+.closedNote {
+  margin: 0;
+  padding: var(--space-4);
+  color: var(--text-muted);
+}
+
 .cards {
   display: flex;
   flex-direction: column;

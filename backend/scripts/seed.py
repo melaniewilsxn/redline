@@ -17,6 +17,11 @@ logger = logging.getLogger(__name__)
 
 CONTRACTS_DIRECTORY = Path(__file__).resolve().parents[2] / "sample_data" / "contracts"
 SEED_AUTHOR = "Seed"
+CONTRACT_TITLES = {
+    "master_services_agreement.txt": "Master Services Agreement",
+    "mutual_nda.txt": "Mutual NDA",
+    "saas_subscription_agreement.txt": "SaaS Subscription Agreement",
+}
 EXISTING_DOCUMENT_PROBE_LIMIT = 1
 EXISTING_DOCUMENT_PROBE_OFFSET = 0
 
@@ -97,6 +102,9 @@ def list_contract_paths() -> list[Path]:
     contract_paths = sorted(CONTRACTS_DIRECTORY.glob("*.txt"))
     if not contract_paths:
         raise RuntimeError(f"No contracts found in {CONTRACTS_DIRECTORY}")
+    for path in contract_paths:
+        if path.name not in CONTRACT_TITLES:
+            raise RuntimeError(f"No title for contract file {path.name}")
     return contract_paths
 
 
@@ -104,7 +112,7 @@ def load_contracts(connection: Connection, contract_paths: list[Path]) -> int:
     """Create one document for each sample contract."""
     search_service = SearchService()
     for path in contract_paths:
-        title = path.stem.replace("_", " ")
+        title = CONTRACT_TITLES[path.name]
         create_document(connection, title, path.read_text(), SEED_AUTHOR, search_service)
     return len(contract_paths)
 

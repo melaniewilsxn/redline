@@ -81,6 +81,7 @@ def build_ai_redline_response(
                 original_text=suggestion.original_text,
                 replacement=suggestion.replacement,
                 rationale=suggestion.rationale,
+                title=suggestion.title,
             )
             for suggestion in document_suggestions.suggestions.anchored
         ],
@@ -90,6 +91,7 @@ def build_ai_redline_response(
                 text=suggestion.text,
                 replacement=suggestion.replacement,
                 rationale=suggestion.rationale,
+                title=suggestion.title,
                 reason=suggestion.reason,
             )
             for suggestion in document_suggestions.suggestions.dropped

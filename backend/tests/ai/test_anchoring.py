@@ -5,6 +5,7 @@ from redline.editing.models import Change, RangeTarget
 
 INDEMNITY = "The Customer shall indemnify the Company."
 RATIONALE = "The indemnity should be mutual."
+TITLE = "Make the indemnity mutual"
 
 
 def test_suggestion_with_exact_context_anchors() -> None:
@@ -15,6 +16,7 @@ def test_suggestion_with_exact_context_anchors() -> None:
         ".",
         "defend the Company",
         RATIONALE,
+        TITLE,
     )
 
     anchored = anchor_suggestions(INDEMNITY, [quote])
@@ -36,6 +38,7 @@ def test_suggestion_with_wrong_context_falls_back_to_unique_text() -> None:
         "",
         "defend the Company",
         RATIONALE,
+        TITLE,
     )
 
     anchored = anchor_suggestions(INDEMNITY, [quote])
@@ -46,7 +49,7 @@ def test_suggestion_with_wrong_context_falls_back_to_unique_text() -> None:
 
 def test_suggestion_with_wrong_context_and_repeated_text_is_dropped_as_ambiguous() -> None:
     """A wrong prefix and a repeated quote are dropped as ambiguous."""
-    quote = RedlineSuggestion("Pay", "zzz", "", "Send", RATIONALE)
+    quote = RedlineSuggestion("Pay", "zzz", "", "Send", RATIONALE, TITLE)
 
     anchored = anchor_suggestions("Pay now. Pay later.", [quote])
 
@@ -56,7 +59,7 @@ def test_suggestion_with_wrong_context_and_repeated_text_is_dropped_as_ambiguous
 
 def test_suggestion_with_ambiguous_context_is_dropped_as_ambiguous() -> None:
     """A prefix and suffix that match twice are dropped as ambiguous."""
-    quote = RedlineSuggestion("Pay", "", " now", "Send", RATIONALE)
+    quote = RedlineSuggestion("Pay", "", " now", "Send", RATIONALE, TITLE)
 
     anchored = anchor_suggestions("Pay now. Pay now.", [quote])
 
@@ -66,7 +69,7 @@ def test_suggestion_with_ambiguous_context_is_dropped_as_ambiguous() -> None:
 
 def test_suggestion_with_missing_text_is_dropped_as_not_found() -> None:
     """A quote that is not in the document is dropped."""
-    quote = RedlineSuggestion("not in the document", "", "", "gone", RATIONALE)
+    quote = RedlineSuggestion("not in the document", "", "", "gone", RATIONALE, TITLE)
 
     anchored = anchor_suggestions(INDEMNITY, [quote])
 
@@ -76,7 +79,7 @@ def test_suggestion_with_missing_text_is_dropped_as_not_found() -> None:
 
 def test_suggestion_with_empty_text_is_dropped() -> None:
     """An empty quote is dropped."""
-    quote = RedlineSuggestion("", "", "", "inserted", RATIONALE)
+    quote = RedlineSuggestion("", "", "", "inserted", RATIONALE, TITLE)
 
     anchored = anchor_suggestions(INDEMNITY, [quote])
 
@@ -86,7 +89,7 @@ def test_suggestion_with_empty_text_is_dropped() -> None:
 
 def test_suggestion_without_change_is_dropped() -> None:
     """A replacement that copies the quote is dropped."""
-    quote = RedlineSuggestion("indemnify", "shall ", " the", "indemnify", RATIONALE)
+    quote = RedlineSuggestion("indemnify", "shall ", " the", "indemnify", RATIONALE, TITLE)
 
     anchored = anchor_suggestions(INDEMNITY, [quote])
 
@@ -96,8 +99,8 @@ def test_suggestion_without_change_is_dropped() -> None:
 
 def test_overlapping_suggestion_is_dropped_and_earlier_one_kept() -> None:
     """The suggestion that starts first is kept when two spans overlap."""
-    later = RedlineSuggestion("cdef", "", "", "XXXX", RATIONALE)
-    earlier = RedlineSuggestion("abcde", "", "", "YYYYY", RATIONALE)
+    later = RedlineSuggestion("cdef", "", "", "XXXX", RATIONALE, TITLE)
+    earlier = RedlineSuggestion("abcde", "", "", "YYYYY", RATIONALE, TITLE)
 
     anchored = anchor_suggestions("abcdefghij", [later, earlier])
 
@@ -110,8 +113,8 @@ def test_overlapping_suggestion_is_dropped_and_earlier_one_kept() -> None:
 
 def test_touching_suggestions_are_both_kept() -> None:
     """Spans that only touch are both kept."""
-    later = RedlineSuggestion("fghij", "", "", "XXXXX", RATIONALE)
-    earlier = RedlineSuggestion("abcde", "", "", "YYYYY", RATIONALE)
+    later = RedlineSuggestion("fghij", "", "", "XXXXX", RATIONALE, TITLE)
+    earlier = RedlineSuggestion("abcde", "", "", "YYYYY", RATIONALE, TITLE)
 
     anchored = anchor_suggestions("abcdefghij", [later, earlier])
 
@@ -122,8 +125,8 @@ def test_touching_suggestions_are_both_kept() -> None:
 
 def test_suggestion_ids_follow_model_order_after_sorting() -> None:
     """Ids follow the model's order even after the spans are sorted."""
-    later = RedlineSuggestion("fghij", "", "", "XXXXX", RATIONALE)
-    earlier = RedlineSuggestion("abcde", "", "", "YYYYY", RATIONALE)
+    later = RedlineSuggestion("fghij", "", "", "XXXXX", RATIONALE, TITLE)
+    earlier = RedlineSuggestion("abcde", "", "", "YYYYY", RATIONALE, TITLE)
 
     anchored = anchor_suggestions("abcdefghij", [later, earlier])
 
@@ -135,8 +138,8 @@ def test_anchored_suggestions_apply_as_one_batch() -> None:
     """Every anchored suggestion applies together as range changes."""
     text = "The Customer shall pay."
     quotes = [
-        RedlineSuggestion("Customer", "The ", " shall", "Client", RATIONALE),
-        RedlineSuggestion("pay", "shall ", ".", "remit", RATIONALE),
+        RedlineSuggestion("Customer", "The ", " shall", "Client", RATIONALE, TITLE),
+        RedlineSuggestion("pay", "shall ", ".", "remit", RATIONALE, TITLE),
     ]
 
     anchored = anchor_suggestions(text, quotes)

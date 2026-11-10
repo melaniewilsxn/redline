@@ -7,7 +7,7 @@ import styles from "./search_results.module.css";
  * Search hits grouped by contract.
  * @param query - The query that was searched.
  * @param hits - One hit per contract.
- * @param onOpenMatch - Opens the contract at a match.
+ * @param onOpenMatch - Opens the contract at a match and keeps that hit's highlights.
  * @returns The results, or the empty message.
  * @throws Does not throw.
  */
@@ -18,7 +18,12 @@ export function SearchResults({
 }: {
   query: string;
   hits: SearchHitResponse[];
-  onOpenMatch: (documentId: string, start: number, end: number) => void;
+  onOpenMatch: (
+    documentId: string,
+    highlights: SnippetResponse["highlights"],
+    focusStart: number,
+    focusEnd: number,
+  ) => void;
 }): ReactNode {
   if (hits.length === 0) {
     return (
@@ -39,7 +44,14 @@ export function SearchResults({
               key={`${snippet.start}-${snippet.end}`}
               type="button"
               className={styles.snippet}
-              onClick={() => onOpenMatch(hit.document_id, matchStart(snippet), matchEnd(snippet))}
+              onClick={() =>
+                onOpenMatch(
+                  hit.document_id,
+                  hit.snippets.flatMap((listedSnippet) => listedSnippet.highlights),
+                  matchStart(snippet),
+                  matchEnd(snippet),
+                )
+              }
             >
               <SnippetText snippet={snippet} />
             </button>

@@ -41,6 +41,7 @@ def test_ai_redlines_returns_suggestions_dropped_and_etag(client: TestClient) ->
                     suffix=".",
                     replacement="defend the Company",
                     rationale="Make the indemnity mutual.",
+                    title="Make the indemnity mutual",
                 ),
                 RedlineSuggestion(
                     text="not in the document",
@@ -48,6 +49,7 @@ def test_ai_redlines_returns_suggestions_dropped_and_etag(client: TestClient) ->
                     suffix="",
                     replacement="gone",
                     rationale="This quote is absent.",
+                    title="Remove the missing quote",
                 ),
             ]
         ),
@@ -79,6 +81,7 @@ def test_applying_suggestions_through_patch_updates_the_document(client: TestCli
                     suffix=" pay",
                     replacement="must",
                     rationale="Prefer must.",
+                    title="Prefer must",
                 )
             ]
         ),
@@ -122,6 +125,7 @@ def test_applying_suggestions_after_document_changed_returns_412(client: TestCli
                     suffix=" pay",
                     replacement="must",
                     rationale="Prefer must.",
+                    title="Prefer must",
                 )
             ]
         ),

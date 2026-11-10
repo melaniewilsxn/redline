@@ -23,6 +23,7 @@ from redline.ai.prompts import (
     SUGGESTIONS_SCHEMA,
     TEXT_FIELD,
     THINKING_SETTING,
+    TITLE_FIELD,
 )
 from redline.config import Settings
 
@@ -149,12 +150,17 @@ def read_suggestion(payload: object) -> RedlineSuggestion:
     if not isinstance(payload, dict):
         logger.error("A model suggestion was not an object")
         raise ModelResponseError(ModelResponseFailure.INVALID_JSON)
+    title = read_string_field(payload, TITLE_FIELD)
+    if title == "":
+        logger.error("A model suggestion has an empty title")
+        raise ModelResponseError(ModelResponseFailure.MISSING_FIELD)
     return RedlineSuggestion(
         text=read_string_field(payload, TEXT_FIELD),
         prefix=read_string_field(payload, PREFIX_FIELD),
         suffix=read_string_field(payload, SUFFIX_FIELD),
         replacement=read_string_field(payload, REPLACEMENT_FIELD),
         rationale=read_string_field(payload, RATIONALE_FIELD),
+        title=title,
     )
 
 

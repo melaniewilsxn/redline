@@ -213,7 +213,7 @@ import sys
 
 body = json.load(open(sys.argv[1]))
 for document in body["documents"]:
-    if document["title"] == "master services agreement":
+    if document["title"] == "Master Services Agreement":
         print(document["id"])
         break
 else:

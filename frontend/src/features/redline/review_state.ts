@@ -29,6 +29,7 @@ export interface SuggestionResponseFields {
   original_text: string;
   replacement: string;
   rationale: string;
+  title: string;
 }
 
 export interface AiRedlineFields {
@@ -73,6 +74,7 @@ export function toReviewSuggestion(suggestion: SuggestionResponseFields): Review
     originalText: suggestion.original_text,
     replacement: suggestion.replacement,
     rationale: suggestion.rationale,
+    title: suggestion.title,
     status: SuggestionStatus.Pending,
   };
 }

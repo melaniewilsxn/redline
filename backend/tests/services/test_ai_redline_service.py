@@ -85,6 +85,7 @@ def test_suggestions_anchor_against_the_full_text_when_excerpts_are_sent(
                 suffix="",
                 replacement="The escrow clause is mutual.",
                 rationale="Balance the escrow.",
+                title="Make the escrow mutual",
             )
         ]
     )

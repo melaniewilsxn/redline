@@ -29,6 +29,7 @@ export interface ReviewSuggestion {
   originalText: string;
   replacement: string;
   rationale: string;
+  title: string;
   status: SuggestionStatus;
 }
 

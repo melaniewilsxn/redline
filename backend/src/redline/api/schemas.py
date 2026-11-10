@@ -237,6 +237,7 @@ class SuggestionResponse:
     original_text: str
     replacement: str
     rationale: str
+    title: Annotated[str, Field(min_length=1)]
 
 
 @dataclass
@@ -247,6 +248,7 @@ class DroppedSuggestionResponse:
     text: str
     replacement: str
     rationale: str
+    title: Annotated[str, Field(min_length=1)]
     reason: DroppedSuggestionReason
 
 

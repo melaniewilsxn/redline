@@ -4,8 +4,6 @@ import { Button, ButtonTone, ButtonVariant } from "../../components/button.tsx";
 import { SuggestionStatus, type ReviewSuggestion } from "./document_segments.ts";
 import styles from "./suggestion_card.module.css";
 
-const TITLE_CHARACTER_LIMIT = 60;
-
 /**
  * One suggestion, with its decision controls.
  * @param suggestion - The suggestion.
@@ -44,7 +42,7 @@ export function SuggestionCard({
       onClick={onSelect}
     >
       <span className={styles.tag}>AI</span>
-      <h3 className={styles.title}>{suggestionTitle(suggestion.rationale)}</h3>
+      <h3 className={styles.title}>{suggestion.title}</h3>
       <p className={styles.rationale}>{suggestion.rationale}</p>
       {pending ? (
         <div className={styles.actions}>
@@ -88,24 +86,4 @@ export function SuggestionCard({
       )}
     </article>
   );
-}
-
-/**
- * Use the first sentence of a rationale, cut on a word before 60 characters.
- * @param rationale - The full reason.
- * @returns The card title.
- * @throws Does not throw.
- */
-function suggestionTitle(rationale: string): string {
-  const sentenceEnd = rationale.indexOf(".");
-  const sentence = sentenceEnd === -1 ? rationale : rationale.slice(0, sentenceEnd);
-  if (sentence.length <= TITLE_CHARACTER_LIMIT) {
-    return sentence;
-  }
-  const shortened = sentence.slice(0, TITLE_CHARACTER_LIMIT);
-  const lastSpace = shortened.lastIndexOf(" ");
-  if (lastSpace === -1) {
-    return shortened;
-  }
-  return shortened.slice(0, lastSpace);
 }

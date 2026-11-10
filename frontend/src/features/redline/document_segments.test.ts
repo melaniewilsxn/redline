@@ -32,6 +32,7 @@ function buildSuggestion(
     originalText: "text",
     replacement: "replacement",
     rationale: RATIONALE,
+    title: "Make the indemnity mutual",
     status,
   };
 }

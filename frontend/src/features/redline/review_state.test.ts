@@ -29,6 +29,7 @@ function buildResponse(): AiRedlineFields {
         original_text: "Hello",
         replacement: "Hi",
         rationale: "Prefer the shorter greeting.",
+        title: "Shorten the greeting",
       },
       {
         suggestion_id: "s2",
@@ -37,6 +38,7 @@ function buildResponse(): AiRedlineFields {
         original_text: "world",
         replacement: "there",
         rationale: "Use the other word.",
+        title: "Use the other word",
       },
     ],
     dropped: [],

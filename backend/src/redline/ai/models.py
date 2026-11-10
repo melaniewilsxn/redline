@@ -41,6 +41,7 @@ class RedlineSuggestion:
     suffix: str
     replacement: str
     rationale: str
+    title: str
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,7 @@ class AnchoredSuggestion:
     original_text: str
     replacement: str
     rationale: str
+    title: str
 
 
 @dataclass(frozen=True)
@@ -62,6 +64,7 @@ class DroppedSuggestion:
     text: str
     replacement: str
     rationale: str
+    title: str
     reason: DroppedSuggestionReason
 
 
