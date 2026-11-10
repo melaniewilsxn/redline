@@ -79,7 +79,7 @@ def test_request_sends_model_schema_thinking_effort_and_prompts() -> None:
     def create(**kwargs: object) -> ModelResponse:
         """Record the request and return one suggestion."""
         recorded.update(kwargs)
-        return suggestion_response("end_turn")
+        return build_suggestion_response("end_turn")
 
     client.anthropic_client.messages.create = create
 
@@ -119,7 +119,7 @@ def test_response_without_text_block_raises_model_response_error() -> None:
 def test_end_turn_response_parses_suggestions() -> None:
     """An end_turn response uses the text block and ignores a thinking block."""
     client = AnthropicModelClient("test-key")
-    client.anthropic_client.messages.create = lambda **kwargs: suggestion_response("end_turn")
+    client.anthropic_client.messages.create = lambda **kwargs: build_suggestion_response("end_turn")
 
     suggestions = client.request_suggestions(SYSTEM_PROMPT, USER_PROMPT)
 
@@ -131,7 +131,9 @@ def test_end_turn_response_parses_suggestions() -> None:
 def test_max_tokens_stop_reason_raises_model_response_error() -> None:
     """A truncated response is rejected."""
     client = AnthropicModelClient("test-key")
-    client.anthropic_client.messages.create = lambda **kwargs: suggestion_response("max_tokens")
+    client.anthropic_client.messages.create = lambda **kwargs: build_suggestion_response(
+        "max_tokens"
+    )
 
     with pytest.raises(ModelResponseError) as raised:
         client.request_suggestions(SYSTEM_PROMPT, USER_PROMPT)
@@ -142,7 +144,7 @@ def test_max_tokens_stop_reason_raises_model_response_error() -> None:
 def test_refusal_stop_reason_raises_model_response_error() -> None:
     """A refusal is rejected."""
     client = AnthropicModelClient("test-key")
-    client.anthropic_client.messages.create = lambda **kwargs: suggestion_response("refusal")
+    client.anthropic_client.messages.create = lambda **kwargs: build_suggestion_response("refusal")
 
     with pytest.raises(ModelResponseError) as raised:
         client.request_suggestions(SYSTEM_PROMPT, USER_PROMPT)
@@ -210,7 +212,7 @@ def test_build_model_client_with_key_is_anthropic() -> None:
     assert isinstance(client, AnthropicModelClient)
 
 
-def suggestion_response(stop_reason: str) -> ModelResponse:
+def build_suggestion_response(stop_reason: str) -> ModelResponse:
     """Build a response whose text block is one suggestion."""
     return ModelResponse(
         stop_reason=stop_reason,

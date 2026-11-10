@@ -3,8 +3,10 @@ from http import HTTPStatus
 from uuid import UUID
 
 from fastapi.testclient import TestClient
+from httpx import Response
 
 from redline.ai.errors import ModelResponseError, ModelResponseFailure, ModelUnavailableError
+from redline.ai.model_client import RedlineModelClient
 from redline.ai.models import RedlineSuggestion
 from redline.api.dependencies import get_model_client
 from redline.api.schemas import (
@@ -16,6 +18,7 @@ from redline.api.schemas import (
     ErrorType,
     RangeTargetRequest,
 )
+from tests.api.test_search_api import CreatedDocument
 from tests.fixtures.fake_model_client import FailingModelClient, FakeModelClient
 
 DOCUMENT_TITLE = "Notes"
@@ -50,13 +53,13 @@ def test_ai_redlines_returns_suggestions_dropped_and_etag(client: TestClient) ->
         ),
     )
 
-    response = post_redlines(client, created["id"], INSTRUCTION)
+    response = post_redlines(client, created.document_id, INSTRUCTION)
 
     assert response.status_code == HTTPStatus.OK
     body = response.json()
-    assert body["document_id"] == created["id"]
+    assert body["document_id"] == created.document_id
     assert body["version"] == 1
-    assert response.headers["etag"] == f'"{created["id"]}-1"'
+    assert response.headers["etag"] == f'"{created.document_id}-1"'
     assert len(body["suggestions"]) == 1
     assert body["suggestions"][0]["original_text"] == "indemnify the Company"
     assert body["suggestions"][0]["replacement"] == "defend the Company"
@@ -80,7 +83,7 @@ def test_applying_suggestions_through_patch_updates_the_document(client: TestCli
             ]
         ),
     )
-    suggested = post_redlines(client, created["id"], INSTRUCTION)
+    suggested = post_redlines(client, created.document_id, INSTRUCTION)
     suggestion = suggested.json()["suggestions"][0]
     request = ApplyChangesRequest(
         author=DOCUMENT_AUTHOR,
@@ -97,7 +100,7 @@ def test_applying_suggestions_through_patch_updates_the_document(client: TestCli
     )
 
     response = client.patch(
-        f"/documents/{created['id']}",
+        f"/documents/{created.document_id}",
         headers={"If-Match": suggested.headers["etag"]},
         json=asdict(request),
     )
@@ -123,7 +126,7 @@ def test_applying_suggestions_after_document_changed_returns_412(client: TestCli
             ]
         ),
     )
-    suggested = post_redlines(client, created["id"], INSTRUCTION)
+    suggested = post_redlines(client, created.document_id, INSTRUCTION)
     etag = suggested.headers["etag"]
     suggestion = suggested.json()["suggestions"][0]
     first_edit = ApplyChangesRequest(
@@ -136,7 +139,7 @@ def test_applying_suggestions_after_document_changed_returns_412(client: TestCli
         ],
     )
     client.patch(
-        f"/documents/{created['id']}",
+        f"/documents/{created.document_id}",
         headers={"If-Match": etag},
         json=asdict(first_edit),
     )
@@ -155,7 +158,7 @@ def test_applying_suggestions_after_document_changed_returns_412(client: TestCli
     )
 
     response = client.patch(
-        f"/documents/{created['id']}",
+        f"/documents/{created.document_id}",
         headers={"If-Match": etag},
         json=asdict(stale_edit),
     )
@@ -178,7 +181,7 @@ def test_ai_redlines_without_api_key_returns_503(client: TestClient) -> None:
     """No API key returns 503."""
     created = post_document(client, CONTRACT)
 
-    response = post_redlines(client, created["id"], INSTRUCTION)
+    response = post_redlines(client, created.document_id, INSTRUCTION)
 
     assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
     assert response.json()["error_type"] == ErrorType.AI_NOT_CONFIGURED
@@ -189,7 +192,7 @@ def test_model_failure_returns_502_model_unavailable(client: TestClient) -> None
     created = post_document(client, CONTRACT)
     install_model(client, FailingModelClient(ModelUnavailableError("APIStatusError")))
 
-    response = post_redlines(client, created["id"], INSTRUCTION)
+    response = post_redlines(client, created.document_id, INSTRUCTION)
 
     assert response.status_code == HTTPStatus.BAD_GATEWAY
     assert response.json()["error_type"] == ErrorType.MODEL_UNAVAILABLE
@@ -200,7 +203,7 @@ def test_invalid_model_response_returns_502_model_response_invalid(client: TestC
     created = post_document(client, CONTRACT)
     install_model(client, FailingModelClient(ModelResponseError(ModelResponseFailure.INVALID_JSON)))
 
-    response = post_redlines(client, created["id"], INSTRUCTION)
+    response = post_redlines(client, created.document_id, INSTRUCTION)
 
     assert response.status_code == HTTPStatus.BAD_GATEWAY
     assert response.json()["error_type"] == ErrorType.MODEL_RESPONSE_INVALID
@@ -210,22 +213,25 @@ def test_empty_instruction_returns_validation_error(client: TestClient) -> None:
     """An empty instruction is a validation error."""
     created = post_document(client, CONTRACT)
 
-    response = client.post(f"/documents/{created['id']}/ai-redlines", json={"instruction": ""})
+    response = client.post(
+        f"/documents/{created.document_id}/ai-redlines",
+        json={"instruction": ""},
+    )
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_CONTENT
     assert response.json()["error_type"] == ErrorType.VALIDATION_ERROR
 
 
-def post_document(client: TestClient, text: str) -> dict[str, str]:
+def post_document(client: TestClient, text: str) -> CreatedDocument:
     """Create a document and return its id and text."""
     request = CreateDocumentRequest(title=DOCUMENT_TITLE, text=text, author=DOCUMENT_AUTHOR)
     response = client.post("/documents", json=asdict(request))
     assert response.status_code == HTTPStatus.CREATED
     body = response.json()
-    return {"id": body["id"], "text": body["text"]}
+    return CreatedDocument(document_id=body["id"], text=body["text"])
 
 
-def post_redlines(client: TestClient, document_id: str, instruction: str):
+def post_redlines(client: TestClient, document_id: str, instruction: str) -> Response:
     """Request suggestions for one document."""
     request = AiRedlineRequest(instruction=instruction)
     return client.post(f"/documents/{document_id}/ai-redlines", json=asdict(request))
@@ -234,7 +240,7 @@ def post_redlines(client: TestClient, document_id: str, instruction: str):
 def install_model(client: TestClient, model_client: FakeModelClient | FailingModelClient) -> None:
     """Use this model client for the test."""
 
-    def override():
+    def override() -> RedlineModelClient:
         """Return the test model client."""
         return model_client
 

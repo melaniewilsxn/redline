@@ -1,0 +1,53 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  background: transparent;
+  text-align: left;
+}
+
+.active {
+  background: var(--surface-selected);
+}
+
+.tag {
+  align-self: flex-start;
+  border-radius: var(--radius-tag);
+  padding: 0 var(--space-2);
+  background: var(--surface-page);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.title {
+  margin: 0;
+  font-weight: 500;
+}
+
+.rationale {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.decision {
+  margin: 0;
+  font-size: 12px;
+}
+
+.accepted {
+  color: var(--accept);
+}
+
+.rejected {
+  color: var(--text-muted);
+}

@@ -1,0 +1,11 @@
+.hint {
+  display: inline-flex;
+  align-items: center;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-1);
+  background: var(--surface-page);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}

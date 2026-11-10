@@ -4,7 +4,7 @@ from uuid import UUID
 import pytest
 
 from redline.ai.models import Playbook, PlaybookPosition, RedlineSuggestion
-from redline.services.ai_redline_service import suggest_redlines
+from redline.services.ai_redline_service import DocumentReader, suggest_redlines
 from redline.services.search_service import SearchService
 from redline.storage.errors import DocumentNotFoundError
 from redline.storage.models import StoredDocument
@@ -33,7 +33,14 @@ def test_short_document_is_sent_whole() -> None:
     text = "The indemnity is one way."
     model = FakeModelClient(suggestions=[])
 
-    suggest_redlines(reader(text), SearchService(), model, PLAYBOOK, DOCUMENT_ID, INSTRUCTION)
+    suggest_redlines(
+        build_document_reader(text),
+        SearchService(),
+        model,
+        PLAYBOOK,
+        DOCUMENT_ID,
+        INSTRUCTION,
+    )
 
     assert text in model.user_prompt
     assert "<contract>" in model.user_prompt
@@ -48,7 +55,14 @@ def test_long_document_sends_only_retrieved_excerpts(monkeypatch: pytest.MonkeyP
     )
     model = FakeModelClient(suggestions=[])
 
-    suggest_redlines(reader(text), SearchService(), model, PLAYBOOK, DOCUMENT_ID, INSTRUCTION)
+    suggest_redlines(
+        build_document_reader(text),
+        SearchService(),
+        model,
+        PLAYBOOK,
+        DOCUMENT_ID,
+        INSTRUCTION,
+    )
 
     assert "The indemnity is one way." in model.user_prompt
     assert "The weather is fine today." not in model.user_prompt
@@ -76,7 +90,7 @@ def test_suggestions_anchor_against_the_full_text_when_excerpts_are_sent(
     )
 
     result = suggest_redlines(
-        reader(text), SearchService(), model, PLAYBOOK, DOCUMENT_ID, INSTRUCTION
+        build_document_reader(text), SearchService(), model, PLAYBOOK, DOCUMENT_ID, INSTRUCTION
     )
 
     assert "The escrow clause is special." not in model.user_prompt
@@ -103,7 +117,7 @@ def test_missing_document_raises_document_not_found_error() -> None:
         )
 
 
-def reader(text: str):
+def build_document_reader(text: str) -> DocumentReader:
     """Return a reader for one stored document."""
 
     def read_document(document_id: UUID) -> StoredDocument:

@@ -207,7 +207,7 @@ if [[ "$status" != "200" ]]; then
   echo "expected status 200" >&2
   exit 1
 fi
-msa_id=$(python3 - "$workdir/body" <<'PY'
+agreement_id=$(python3 - "$workdir/body" <<'PY'
 import json
 import sys
 
@@ -221,7 +221,7 @@ else:
 PY
 )
 status=$(curl -sS -D "$workdir/headers" -o "$workdir/body" -w "%{http_code}" \
-  -X POST "$BASE_URL/documents/$msa_id/ai-redlines" \
+  -X POST "$BASE_URL/documents/$agreement_id/ai-redlines" \
   -H "Content-Type: application/json" \
   --data-binary '{"instruction":"Make the indemnification mutual"}')
 echo "status $status"
@@ -256,7 +256,7 @@ PY
   if [[ -f "$workdir/apply.json" ]]; then
     suggestion_etag=$(header_value "etag")
     call_api "18b. Apply the suggestions" 200 \
-      -X PATCH "$BASE_URL/documents/$msa_id" \
+      -X PATCH "$BASE_URL/documents/$agreement_id" \
       -H "Content-Type: application/json" \
       -H "If-Match: $suggestion_etag" \
       --data-binary @"$workdir/apply.json"

@@ -1,0 +1,90 @@
+:root {
+  --surface-page: #f7f6f3;
+  --surface-document: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-selected: #f3f1ec;
+  --text: #1c1b19;
+  --text-muted: #6b6860;
+  --border: #e4e1da;
+  --focus-ring: #2f5bd3;
+  --redline-delete: #c4372b;
+  --redline-delete-bg: #fbecea;
+  --redline-insert: #2f5bd3;
+  --redline-insert-bg: #eaf0fd;
+  --accept: #1f7a5a;
+  --accept-bg: #e6f3ec;
+  --search-highlight: #f5e6b8;
+  --shadow-popover: 0 8px 24px rgba(28, 27, 25, 0.12);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --radius-control: 6px;
+  --radius-card: 10px;
+  --radius-tag: 999px;
+  --duration-fast: 140ms;
+  --duration-base: 240ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --font-serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Instrument Sans", "Avenir Next", "Segoe UI", sans-serif;
+  --font-body: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
+  --rail-width: 240px;
+  --panel-width: 340px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-page: #121317;
+    --surface-document: #1a1c22;
+    --surface-raised: #22242c;
+    --surface-selected: #2a2d36;
+    --text: #eceae5;
+    --text-muted: #9a978f;
+    --border: #32343c;
+    --focus-ring: #8fb0ff;
+    --redline-delete: #ff8a7a;
+    --redline-delete-bg: rgba(255, 138, 122, 0.13);
+    --redline-insert: #8fb0ff;
+    --redline-insert-bg: rgba(143, 176, 255, 0.14);
+    --accept: #5fd3a4;
+    --accept-bg: rgba(95, 211, 164, 0.14);
+    --search-highlight: #5c4b1e;
+    --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface-page: #121317;
+  --surface-document: #1a1c22;
+  --surface-raised: #22242c;
+  --surface-selected: #2a2d36;
+  --text: #eceae5;
+  --text-muted: #9a978f;
+  --border: #32343c;
+  --focus-ring: #8fb0ff;
+  --redline-delete: #ff8a7a;
+  --redline-delete-bg: rgba(255, 138, 122, 0.13);
+  --redline-insert: #8fb0ff;
+  --redline-insert-bg: rgba(143, 176, 255, 0.14);
+  --accept: #5fd3a4;
+  --accept-bg: rgba(95, 211, 164, 0.14);
+  --search-highlight: #5c4b1e;
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+  }
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --panel-width: 300px;
+  }
+}

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from redline.search.index import create_search_index, index_document
+from redline.search.index import IndexedDocument, create_search_index, index_document
 from redline.search.models import IndexedChunk
 from redline.search.retrieval import rank_chunks_for_instruction
 
@@ -16,7 +16,7 @@ def test_chunks_with_instruction_terms_rank_first() -> None:
     chunks = rank_chunks_for_instruction(document, "indemnity", 1)
 
     assert len(chunks) == 1
-    assert "indemnity" in chunk_text(document.text, chunks[0])
+    assert "indemnity" in get_chunk_text(document.text, chunks[0])
     assert chunks[0].start > 0
 
 
@@ -27,7 +27,7 @@ def test_any_instruction_term_matches() -> None:
     chunks = rank_chunks_for_instruction(document, "alpha zebra", 2)
 
     assert len(chunks) == 1
-    assert "alpha" in chunk_text(document.text, chunks[0])
+    assert "alpha" in get_chunk_text(document.text, chunks[0])
 
 
 def test_stopwords_do_not_match() -> None:
@@ -47,7 +47,7 @@ def test_results_are_in_document_order() -> None:
 
     assert len(chunks) == 2
     assert chunks[0].start < chunks[1].start
-    assert "once" in chunk_text(document.text, chunks[0])
+    assert "once" in get_chunk_text(document.text, chunks[0])
 
 
 def test_instruction_without_known_terms_returns_first_chunks() -> None:
@@ -59,13 +59,13 @@ def test_instruction_without_known_terms_returns_first_chunks() -> None:
     assert chunks[0].start == document.chunks[0].start
 
 
-def index_text(text: str):
+def index_text(text: str) -> IndexedDocument:
     """Index one document and return it."""
     index = create_search_index()
     index_document(index, DOCUMENT_ID, TITLE, VERSION, text)
     return index.documents[DOCUMENT_ID]
 
 
-def chunk_text(text: str, chunk: IndexedChunk) -> str:
+def get_chunk_text(text: str, chunk: IndexedChunk) -> str:
     """Return the document text covered by a chunk."""
     return text[chunk.start : chunk.start + chunk.length]

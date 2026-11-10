@@ -1,0 +1,12 @@
+.wordmark {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.line {
+  color: var(--redline-delete);
+}

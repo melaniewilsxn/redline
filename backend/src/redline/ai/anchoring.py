@@ -125,7 +125,8 @@ def drop_overlaps(
 def log_anchor_result(anchored: list[AnchoredSuggestion], dropped: list[DroppedSuggestion]) -> None:
     """Log how many suggestions anchored and how many dropped, by reason."""
     reason_counts = [
-        f"{reason.value} {sum(1 for item in dropped if item.reason == reason)}"
+        f"{reason.value} "
+        f"{sum(1 for dropped_suggestion in dropped if dropped_suggestion.reason == reason)}"
         for reason in DroppedSuggestionReason
     ]
     logger.info(

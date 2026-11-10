@@ -46,7 +46,7 @@ def suggest_document_redlines(
         f"Started AI redlines for document {document_id}, "
         f"instruction length {len(body.instruction)}"
     )
-    result = suggest_redlines(
+    document_suggestions = suggest_redlines(
         read_document,
         search_service,
         model_client,
@@ -54,19 +54,25 @@ def suggest_document_redlines(
         document_id,
         body.instruction,
     )
-    response.headers["ETag"] = build_etag(result.document_id, result.version)
-    logger.info(
-        f"Finished AI redlines for document {result.document_id} version {result.version}, "
-        f"{len(result.suggestions.anchored)} anchored, {len(result.suggestions.dropped)} dropped"
+    response.headers["ETag"] = build_etag(
+        document_suggestions.document_id, document_suggestions.version
     )
-    return ai_redline_response(result)
+    logger.info(
+        f"Finished AI redlines for document {document_suggestions.document_id} "
+        f"version {document_suggestions.version}, "
+        f"{len(document_suggestions.suggestions.anchored)} anchored, "
+        f"{len(document_suggestions.suggestions.dropped)} dropped"
+    )
+    return build_ai_redline_response(document_suggestions)
 
 
-def ai_redline_response(result: DocumentRedlineSuggestions) -> AiRedlineResponse:
+def build_ai_redline_response(
+    document_suggestions: DocumentRedlineSuggestions,
+) -> AiRedlineResponse:
     """Map anchored and dropped suggestions onto the response body."""
     return AiRedlineResponse(
-        document_id=result.document_id,
-        version=result.version,
+        document_id=document_suggestions.document_id,
+        version=document_suggestions.version,
         suggestions=[
             SuggestionResponse(
                 suggestion_id=suggestion.suggestion_id,
@@ -76,7 +82,7 @@ def ai_redline_response(result: DocumentRedlineSuggestions) -> AiRedlineResponse
                 replacement=suggestion.replacement,
                 rationale=suggestion.rationale,
             )
-            for suggestion in result.suggestions.anchored
+            for suggestion in document_suggestions.suggestions.anchored
         ],
         dropped=[
             DroppedSuggestionResponse(
@@ -86,6 +92,6 @@ def ai_redline_response(result: DocumentRedlineSuggestions) -> AiRedlineResponse
                 rationale=suggestion.rationale,
                 reason=suggestion.reason,
             )
-            for suggestion in result.suggestions.dropped
+            for suggestion in document_suggestions.suggestions.dropped
         ],
     )

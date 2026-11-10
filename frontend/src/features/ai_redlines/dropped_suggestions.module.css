@@ -1,0 +1,33 @@
+.row,
+.reason {
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.row {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-4);
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.reason {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}

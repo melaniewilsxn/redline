@@ -14,7 +14,7 @@ make seed
 make dev
 ```
 
-Seed before `make dev`. The search index is built from the database when the server starts, so documents seeded while a server is already running do not appear in search until you restart it.
+Seed before `make dev`. The search index is built from the database when the server starts, so documents seeded while a server is already running do not appear in search until you restart it. `make reseed` deletes every document and loads the samples again. Restart the server afterwards so the index matches.
 
 API docs are at http://localhost:8000/docs. If port 8000 is taken, run `make dev PORT=8002`.
 
@@ -179,6 +179,34 @@ Routes are synchronous. psycopg is synchronous, and FastAPI runs sync routes in 
 ## Testing
 
 `make test` runs the suite. Tests that write to Postgres use `TEST_DATABASE_URL` and roll the transaction back, so they leave the test database empty. `make lint` runs Ruff.
+
+## Review UI
+
+The review screen is a separate frontend. In one terminal, start the API. In another, start the UI. The UI proxies `/api` to the API, so the page and the API share an origin and the browser can read the `ETag`.
+
+```bash
+make dev
+make ui
+```
+
+Open http://localhost:5173. If port 8000 is taken, start the API with `make dev PORT=8002` and the UI with `make ui PORT=8002`. `make ui-types` regenerates `frontend/src/api/schema.ts` from the running API. `make reseed` deletes every document and loads the samples again; restart the API afterwards so search matches the database.
+
+Choose a contract, then ask for redlines. Three presets fill the instruction and send it: review against the playbook, make the indemnification mutual, or cap liability at 12 months' fees. Each suggestion appears in the contract as a deletion and an insertion, with the reason in the changes column. Accept or reject each one, then apply the accepted ones. That writes one new version, and only if the contract is still the version the review was read from. If it is not, the screen says the contract changed and offers to run the review again.
+
+| Key | Action |
+| --- | --- |
+| J, K | Next or previous suggestion |
+| A | Accept the active suggestion |
+| R | Reject the active suggestion |
+| U | Undo the active decision |
+| / | Focus search |
+| ⌘ Enter or Ctrl Enter | Send the instruction, or apply once a review is open |
+| Esc | Clear search, or clear the instruction |
+| Enter, Shift Enter | Next or previous match in the open contract |
+
+The theme control cycles through the system setting, light, and dark, and remembers the choice in this browser. Search covers every contract from the left, or the open contract from its header. A match scrolls into view.
+
+The document is the page: a serif body at a comfortable measure, and quiet chrome. Color is reserved for a deletion, an insertion, an acceptance, and the AI tag. Deletions are struck through and insertions are underlined, so a change still reads without color. Decisions stay on the review until Apply, which sends them as one versioned write with `If-Match`. The TypeScript types for responses are generated from the API schema.
 
 ## Next steps
 
