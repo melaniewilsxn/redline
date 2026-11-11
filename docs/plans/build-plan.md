@@ -28,7 +28,7 @@ Built for the Sandstone take-home (Part I). The infra write-up for Part II lives
 ### Deliberately left for later (documented as next steps in the README)
 
 - Auth, users, and per-document permissions (the author is a plain name field).
-- Rich text and .docx import/export. Documents are plain text.
+- Rich text: Word formatting is dropped on import and isn't recreated on export beyond headings. Documents are plain text.
 - Stored proposals: a `proposals` table, propose/accept/reject endpoints, and rebasing pending proposals on every write (the algorithm exists in `editing/rebase.py`, with tests). The design is kept in section 5's behavior rules.
 - Version compare (a word-level blackline between two versions).
 - Comment threads separate from suggestion rationales.
@@ -261,7 +261,9 @@ Phases 1 to 3 plus the README are a complete baseline submission. Everything aft
 | 4 | Search fixes and AI redline suggestions | Phrase search and benchmark fixes from the Phase 3 review. `ai` package, playbook, `search/retrieval.py` for large documents, and `POST /documents/{id}/ai-redlines` returning anchored and dropped suggestions. Unused proposal and compare scaffolds removed. | 3 | The rare-phrase benchmark row beats the scan; the common-phrase row is reported and explained. With a real key, "make the indemnification mutual" returns anchored suggestions with rationales, and applying them as one `PATCH` of range targets with the returned `ETag` works. Tests pass offline with the fake client. |
 | 5 | UI | React app built and designed in one phase, to the approved "modern editorial" direction (warm off-white and charcoal-ink themes with a toggle, Newsreader document text, Instrument Serif headings and wordmark, Instrument Sans interface): document list, document view with suggestions as inline redlines, changes panel with accept and reject, accept all, AI instruction box, search with jump to match, keyboard review. | 2 to 4 | A reviewer can open a contract, ask for a playbook review, step through the suggestions from the keyboard, accept some, and search the result, in a UI that looks like a product. |
 | 6 | Review fixes, setup, and final README | Fixes from the hands-on UI walkthrough (word-level redline rendering, model-written suggestion titles, AI tag colors, persistent search marks, sample contract cleanup), fixes from the fresh-clone run (one setup path, configurable ports, self-installing frontend targets), and the final README with screenshots. Pushed to GitHub. | All | A fresh clone of the pushed repo runs from the README alone. |
-| 7 | Part II: infra write-up | `docs/infra.md`, written with the user, not the coding agent. | 6 | One page covering architecture, CI/CD, security and compliance, scale and resilience, observability, and cost, with trade-offs and priorities. |
+| 6b | Search fixes | Left search filters contract names instantly and matches the last typed word as a prefix (`mode=prefix`, opt-in; the API stays exact by default). In-contract search becomes a literal, in-browser find that reaches every match. | 6 | Typing "Mas" finds the MSA by name and text; find "customer" steps through all 56 matches. |
+| 7 | Add, edit, download | Add contracts from .docx, .txt, or pasted text; your own edits as tracked changes that apply together with accepted AI suggestions; download the saved version as .docx or .txt. Frontend only, on existing endpoints. | 6 | A whole negotiation round works in the UI: bring in a draft, mark it up, apply, and download. |
+| 8 | Part II: infra write-up | `docs/infra.md`, written with the user, not the coding agent. | 7 | One page covering architecture, CI/CD, security and compliance, scale and resilience, observability, and cost, with trade-offs and priorities. |
 
 ## 8. Risks and open questions
 

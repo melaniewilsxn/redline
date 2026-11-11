@@ -10,6 +10,12 @@ export type DroppedSuggestionReason = components["schemas"]["DroppedSuggestionRe
 export type ApplyChangesRequest = components["schemas"]["ApplyChangesRequest"];
 export type ApplyChangesResponse = components["schemas"]["ApplyChangesResponse"];
 export type ChangeRequest = components["schemas"]["ChangeRequest"];
+export const SearchMatchMode = {
+  Exact: "exact",
+  Prefix: "prefix",
+} as const satisfies Record<string, components["schemas"]["SearchMatchMode"]>;
+export type SearchMatchMode = (typeof SearchMatchMode)[keyof typeof SearchMatchMode];
+
 export type SearchResponse = components["schemas"]["SearchResponse"];
 export type SearchHitResponse = components["schemas"]["SearchHitResponse"];
 export type SnippetResponse = components["schemas"]["SnippetResponse"];

@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import type { DocumentResponse } from "../../api/types.ts";
 import { StatusBanner } from "../../components/status_banner.tsx";
-import { useDocumentSearch } from "../search/use_search.ts";
+import { MAXIMUM_FIND_MATCHES, findTextMatches } from "./find_in_text.ts";
 import {
   ChangeState,
   SegmentKind,
@@ -73,24 +73,19 @@ export function DocumentView({
   const [trackedQuery, setTrackedQuery] = useState("");
   const [trackedDocumentId, setTrackedDocumentId] = useState("");
   const columnRef = useRef<HTMLDivElement>(null);
-  const search = useDocumentSearch(document?.id ?? "", query);
-  const hit = search.search.data?.body.hits[0];
-  const snippets = hit?.snippets ?? [];
-  const matchCount = hit?.match_count ?? 0;
-  const currentSnippet = snippets[matchIndex] ?? snippets[0];
-  const inDocumentHighlights = snippets.flatMap((snippet) => snippet.highlights);
-  const documentHighlights = search.searching ? inDocumentHighlights : persistedHighlights;
-  const activeFocusStart = search.searching
-    ? (currentSnippet?.highlights[0]?.start ?? null)
-    : focusStart;
-  const activeFocusEnd = search.searching ? (currentSnippet?.highlights[0]?.end ?? null) : focusEnd;
+  const found = findTextMatches(document?.text ?? "", query, MAXIMUM_FIND_MATCHES);
+  const matches = found.matches;
+  const shownIndex = matches.length === 0 ? 0 : Math.min(matchIndex, matches.length - 1);
+  const currentMatch = matches[shownIndex];
+  const finding = query.trim() !== "";
+  const documentHighlights = finding ? matches : persistedHighlights;
+  const activeFocusStart = finding ? (currentMatch?.start ?? null) : focusStart;
+  const activeFocusEnd = finding ? (currentMatch?.end ?? null) : focusEnd;
   const paragraphs =
     document === null
       ? []
       : buildDocumentParagraphs(document.text, suggestions, documentHighlights);
-  const scrollStart = search.searching
-    ? (currentSnippet?.highlights[0]?.start ?? currentSnippet?.start ?? null)
-    : jumpStart;
+  const scrollStart = finding ? (currentMatch?.start ?? null) : jumpStart;
 
   const documentId = document?.id ?? "";
   if (trackedDocumentId !== documentId) {
@@ -98,9 +93,32 @@ export function DocumentView({
     setTrackedQuery("");
     setQuery("");
     setMatchIndex(0);
-  } else if (trackedQuery !== search.settledQuery) {
-    setTrackedQuery(search.settledQuery);
+  } else if (trackedQuery !== query) {
+    setTrackedQuery(query);
     setMatchIndex(0);
+  } else if (matchIndex !== shownIndex) {
+    setMatchIndex(shownIndex);
+  }
+
+  /**
+   * Step through matches, or clear the find without clearing the left search.
+   * @param event - The key event from the find field.
+   * @returns Nothing.
+   * @throws Does not throw.
+   */
+  function onFindKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      setQuery("");
+      return;
+    }
+    if (event.key !== "Enter" || matches.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    setMatchIndex((current) =>
+      stepMatch(current, matches.length, event.shiftKey ? -MATCH_STEP : MATCH_STEP),
+    );
   }
 
   useEffect(() => {
@@ -166,25 +184,19 @@ export function DocumentView({
               value={query}
               placeholder="Search in this contract"
               onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter" || snippets.length === 0) {
-                  return;
-                }
-                event.preventDefault();
-                setMatchIndex((current) =>
-                  stepMatch(current, snippets.length, event.shiftKey ? -MATCH_STEP : MATCH_STEP),
-                );
-              }}
+              onKeyDown={onFindKeyDown}
             />
           </label>
-          {query === "" ? null : (
+          {query.trim() === "" ? null : (
             <>
-              <span className={styles.matchCount}>{matchCount} matches</span>
+              <span className={styles.matchCount}>
+                {findPositionLabel(shownIndex, matches.length, found.capped)}
+              </span>
               <button
                 type="button"
                 className={styles.step}
                 onClick={() =>
-                  setMatchIndex((current) => stepMatch(current, snippets.length, -MATCH_STEP))
+                  setMatchIndex((current) => stepMatch(current, matches.length, -MATCH_STEP))
                 }
               >
                 Previous
@@ -193,7 +205,7 @@ export function DocumentView({
                 type="button"
                 className={styles.step}
                 onClick={() =>
-                  setMatchIndex((current) => stepMatch(current, snippets.length, MATCH_STEP))
+                  setMatchIndex((current) => stepMatch(current, matches.length, MATCH_STEP))
                 }
               >
                 Next
@@ -721,9 +733,25 @@ function paragraphClass(isHeading: boolean, changeState: ChangeState): string {
 }
 
 /**
- * Move through the snippets, wrapping at either end.
- * @param current - The snippet on screen.
- * @param count - How many snippets there are.
+ * Say which match is on screen.
+ * @param index - The match on screen, starting at zero.
+ * @param total - How many matches were found.
+ * @param capped - Whether more matches exist than were kept.
+ * @returns The position label.
+ * @throws Does not throw.
+ */
+function findPositionLabel(index: number, total: number, capped: boolean): string {
+  if (total === 0) {
+    return "No matches";
+  }
+  const shownTotal = capped ? `${MAXIMUM_FIND_MATCHES}+` : String(total);
+  return `${index + 1} of ${shownTotal}`;
+}
+
+/**
+ * Move through the matches, wrapping at either end.
+ * @param current - The match on screen.
+ * @param count - How many matches there are.
  * @param delta - Which way to move.
  * @returns The next index.
  * @throws Does not throw.

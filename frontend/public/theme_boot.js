@@ -4,5 +4,5 @@ try {
     document.documentElement.dataset.theme = storedTheme;
   }
 } catch {
-  /* The system theme stays in place when storage is blocked. */
+  /* A blocked store leaves the light theme in place. */
 }

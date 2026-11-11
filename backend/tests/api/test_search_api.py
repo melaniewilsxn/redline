@@ -211,3 +211,26 @@ def test_index_is_built_from_database_at_startup(
     finally:
         with psycopg.connect(test_database_url, autocommit=True) as connection:
             connection.execute("DELETE FROM documents WHERE id = %s", (document_id,))
+
+
+def test_search_with_prefix_mode_finds_a_partial_word(client: TestClient) -> None:
+    """Prefix mode matches a word from its first letters."""
+    created = post_document(client, DOCUMENT_TITLE, "Master agreement text.", DOCUMENT_AUTHOR)
+
+    response = client.get("/search", params={"q": "Mas", "mode": "prefix"})
+
+    assert response.status_code == HTTPStatus.OK
+    assert created.document_id in [hit["document_id"] for hit in response.json()["hits"]]
+
+
+def test_search_defaults_to_exact_mode(client: TestClient) -> None:
+    """Without mode, a partial word matches nothing, on both search routes."""
+    created = post_document(client, DOCUMENT_TITLE, "Master agreement text.", DOCUMENT_AUTHOR)
+
+    cross_document = client.get("/search", params={"q": "Mas"})
+    one_document = client.get(f"/documents/{created.document_id}/search", params={"q": "Mas"})
+
+    assert cross_document.status_code == HTTPStatus.OK
+    assert one_document.status_code == HTTPStatus.OK
+    assert created.document_id not in [hit["document_id"] for hit in cross_document.json()["hits"]]
+    assert one_document.json()["hits"] == []

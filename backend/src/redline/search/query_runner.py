@@ -3,7 +3,12 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from redline.search.errors import DocumentNotIndexedError, SearchError
-from redline.search.index import IndexedDocument, SearchIndex
+from redline.search.index import (
+    MAXIMUM_PREFIX_EXPANSIONS,
+    IndexedDocument,
+    SearchIndex,
+    find_terms_with_prefix,
+)
 from redline.search.models import (
     AllDocuments,
     SearchHit,
@@ -36,20 +41,36 @@ def run_query(
     index: SearchIndex, query: SearchQuery, scope: SearchScope, limit: int, offset: int
 ) -> SearchPage:
     """Return one page of documents that contain every term and every phrase."""
+    expansions = expand_prefix_terms(index, query)
+    if query.prefix_terms and not expansions:
+        return SearchPage(hits=[], total_count=0)
     terms = collect_query_terms(query)
     matched = [
         document
-        for document in find_candidates(index, query, scope)
+        for document in find_candidates(index, query, scope, expansions)
         if document_matches_phrases(document, query)
     ]
-    scored = [score_document(index, document, query, terms) for document in matched]
+    scored = [score_document(index, document, query, terms, expansions) for document in matched]
     scored.sort(
         key=lambda scored_document: (-scored_document.score, scored_document.document.document_id)
     )
     total_count = len(scored)
     page = scored[offset : offset + limit]
-    hits = [build_hit(scored_document, query) for scored_document in page]
+    hits = [build_hit(scored_document, query, expansions) for scored_document in page]
     return SearchPage(hits=hits, total_count=total_count)
+
+
+def expand_prefix_terms(index: SearchIndex, query: SearchQuery) -> list[str]:
+    """Return the vocabulary words for each prefix, most widespread first."""
+    expansions: list[str] = []
+    seen: set[str] = set()
+    for prefix in query.prefix_terms:
+        for term in find_terms_with_prefix(index, prefix, MAXIMUM_PREFIX_EXPANSIONS):
+            if term in seen:
+                continue
+            seen.add(term)
+            expansions.append(term)
+    return expansions
 
 
 def collect_query_terms(query: SearchQuery) -> list[str]:
@@ -71,15 +92,24 @@ def collect_query_terms(query: SearchQuery) -> list[str]:
 
 
 def find_candidates(
-    index: SearchIndex, query: SearchQuery, scope: SearchScope
+    index: SearchIndex, query: SearchQuery, scope: SearchScope, expansions: list[str]
 ) -> list[IndexedDocument]:
     """Return documents in scope that contain every required term, starting from the rarest."""
     allowed = document_ids_in_scope(index, scope)
-    terms = collect_query_terms(query)
-    if not terms or not allowed:
+    if not allowed:
         return []
-    ordered_terms = sorted(terms, key=lambda term: containing_document_count(index, term))
     matched = allowed
+    if query.prefix_terms:
+        prefix_documents: set[UUID] = set()
+        for term in expansions:
+            prefix_documents |= index.term_documents[term]
+        matched = matched & prefix_documents
+        if not matched:
+            return []
+    terms = collect_query_terms(query)
+    if not terms:
+        return [index.documents[document_id] for document_id in matched]
+    ordered_terms = sorted(terms, key=lambda term: containing_document_count(index, term))
     for term in ordered_terms:
         if term not in index.term_documents:
             return []
@@ -128,29 +158,49 @@ def document_matches_phrases(document: IndexedDocument, query: SearchQuery) -> b
 
 
 def score_document(
-    index: SearchIndex, document: IndexedDocument, query: SearchQuery, terms: list[str]
+    index: SearchIndex,
+    document: IndexedDocument,
+    query: SearchQuery,
+    terms: list[str],
+    expansions: list[str],
 ) -> ScoredDocument:
     """Score one matching document and count its term and phrase occurrences."""
     match_count = 0
+    counted = set(query.terms)
     for term in query.terms:
         if term in document.term_counts:
             match_count += document.term_counts[term]
+    for term in expansions:
+        if term in counted or term not in document.term_counts:
+            continue
+        counted.add(term)
+        match_count += document.term_counts[term]
     for phrase in query.phrases:
         for chunk in document.chunks:
             match_count += len(find_phrase_spans(chunk, phrase))
+    score_terms = list(terms)
+    seen = set(score_terms)
+    for term in expansions:
+        if term in seen or term not in document.term_counts:
+            continue
+        seen.add(term)
+        score_terms.append(term)
     return ScoredDocument(
         document=document,
-        score=score_bm25(index, document, terms),
+        score=score_bm25(index, document, score_terms),
         match_count=match_count,
     )
 
 
-def build_hit(scored_document: ScoredDocument, query: SearchQuery) -> SearchHit:
+def build_hit(
+    scored_document: ScoredDocument, query: SearchQuery, expansions: list[str]
+) -> SearchHit:
     """Build a hit from the first matching chunks in document order."""
     document = scored_document.document
+    highlight_query = get_query_with_expansions(query, expansions)
     snippets = []
     for chunk in document.chunks:
-        highlights = find_chunk_highlights(chunk, query)
+        highlights = find_chunk_highlights(chunk, highlight_query)
         if not highlights:
             continue
         snippets.append(build_snippet(document.text, chunk, highlights))
@@ -164,3 +214,15 @@ def build_hit(scored_document: ScoredDocument, query: SearchQuery) -> SearchHit:
         match_count=scored_document.match_count,
         snippets=snippets,
     )
+
+
+def get_query_with_expansions(query: SearchQuery, expansions: list[str]) -> SearchQuery:
+    """Return a query whose terms include each prefix expansion, so highlights cover them."""
+    terms = list(query.terms)
+    seen = set(terms)
+    for term in expansions:
+        if term in seen:
+            continue
+        seen.add(term)
+        terms.append(term)
+    return SearchQuery(terms=terms, phrases=query.phrases, prefix_terms=[])

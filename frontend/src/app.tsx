@@ -133,10 +133,13 @@ export function App(): ReactNode {
             onQueryChange={changeSearchQuery}
           />
           <div className={styles.railBody}>
-            {search.searching ? (
+            {search.trimmedQuery !== "" ? (
               <SearchResults
-                query={search.settledQuery}
-                hits={search.search.data?.body.hits ?? []}
+                query={search.trimmedQuery}
+                documents={documents.data?.body.documents ?? []}
+                hits={search.textHits}
+                textSettled={search.textSettled}
+                onOpenDocument={selectDocument}
                 onOpenMatch={openMatch}
               />
             ) : (
@@ -415,19 +418,15 @@ export function App(): ReactNode {
   }
 
   /**
-   * Move between the system, light, and dark themes.
+   * Switch between the light and dark themes.
    * @throws Does not throw.
    */
   function cycleTheme(): void {
-    if (theme === ThemeChoice.System) {
-      setTheme(ThemeChoice.Light);
-      return;
-    }
     if (theme === ThemeChoice.Light) {
       setTheme(ThemeChoice.Dark);
       return;
     }
-    setTheme(ThemeChoice.System);
+    setTheme(ThemeChoice.Light);
   }
 }
 

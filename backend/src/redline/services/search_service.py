@@ -10,7 +10,7 @@ from redline.search.index import (
     index_document,
     update_indexed_document,
 )
-from redline.search.models import SearchPage, SearchScope
+from redline.search.models import SearchMatchMode, SearchPage, SearchScope
 from redline.search.query_parser import parse_query
 from redline.search.query_runner import run_query
 from redline.search.retrieval import rank_chunks_for_instruction
@@ -101,19 +101,28 @@ class SearchService:
             f"by {path.value}, from version {base_version}"
         )
 
-    def search(self, query_text: str, scope: SearchScope, limit: int, offset: int) -> SearchPage:
+    def search(
+        self,
+        query_text: str,
+        scope: SearchScope,
+        limit: int,
+        offset: int,
+        match_mode: SearchMatchMode,
+    ) -> SearchPage:
         """Parse the query and return one page of hits."""
-        query = parse_query(query_text)
+        query = parse_query(query_text, match_mode)
         scope_name = type(scope).__name__
         logger.info(
-            f"Started search with {len(query.terms)} terms and {len(query.phrases)} phrases "
-            f"over {scope_name}, limit {limit}, offset {offset}"
+            f"Started search with {len(query.terms)} terms, {len(query.phrases)} phrases, "
+            f"and {len(query.prefix_terms)} prefix terms over {scope_name}, "
+            f"mode {match_mode.value}, limit {limit}, offset {offset}"
         )
         with self.lock:
             page = run_query(self.index, query, scope, limit, offset)
         logger.info(
-            f"Finished search with {len(query.terms)} terms and {len(query.phrases)} phrases "
-            f"over {scope_name}, {page.total_count} hits"
+            f"Finished search with {len(query.terms)} terms, {len(query.phrases)} phrases, "
+            f"and {len(query.prefix_terms)} prefix terms over {scope_name}, "
+            f"mode {match_mode.value}, {page.total_count} hits"
         )
         return page
 

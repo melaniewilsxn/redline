@@ -169,7 +169,7 @@ A change has no `operation` field. Every change means "replace this span." An em
 
 A batch is atomic. Every target is resolved against the current text before any new text is built. If one target is missing, ambiguous, or overlapping, nothing is saved.
 
-`q` is required and may be 1 to 500 characters. Repeat `document_ids` to search only those documents; leave it off to search everything. `/documents/{id}/search` is the same search limited to one document. A document that is not in the index is a 404, the same `document_not_found` as a missing document.
+`q` is required and may be 1 to 500 characters. Repeat `document_ids` to search only those documents; leave it off to search everything. `/documents/{id}/search` is the same search limited to one document. A document that is not in the index is a 404, the same `document_not_found` as a missing document. `mode=prefix` is for search-as-you-type; the last unquoted word matches as a word prefix. Leave `mode` off, and every word has to match in full.
 
 Reads return a strong ETag, `"<document id>-<version>"`. A write must send that value in `If-Match`. The service checks the version before it does the work, then claims the next version with `UPDATE ... WHERE current_version = <expected>` inside a short transaction. The first writer wins. A second writer, or a stale, weak, wildcard, or foreign ETag, gets 412. A missing `If-Match` gets 428.
 
@@ -219,6 +219,12 @@ Replacement: "For every other claim arising out of this agreement, each party's 
 ![One suggested redline from that review](docs/screenshots/ai_suggestion.png)
 
 ## Search design
+
+There are two searches, and each one fits its job.
+
+Across contracts, the server index answers. Exact whole words are the default, for precise clause hunting. `mode=prefix` is for search-as-you-type: the last word being typed matches as a word prefix, and the earlier words stay exact. The left-hand search also filters contract names in the browser as soon as the first character is typed, from the list already on screen.
+
+Within an open contract, find runs in the browser, because the text is already there. It is literal and instant, highlights every match, and steps through all of them. The per-document search endpoint remains for API clients; the header field does not call it.
 
 The index is hand-built. The usual BM25 libraries do not store word positions, and they do not update one paragraph of a document after an edit.
 
@@ -289,7 +295,7 @@ Open http://localhost:5173. Choose a contract, then ask for redlines. Three pres
 | Esc | Clear search, or clear the instruction |
 | Enter, Shift Enter | Next or previous match in the open contract |
 
-The theme control cycles through the system setting, light, and dark, and remembers the choice in this browser. Search covers every contract from the left, or the open contract from its header. A match scrolls into view and stays marked until the search is cleared, another contract is opened, or a review starts.
+The theme control switches between light and dark, and remembers the choice in this browser. Search covers every contract from the left: matching names appear immediately, and text matches follow, with the last word treated as a prefix. Inside an open contract, find steps through every literal match. A match from the left-hand results scrolls into view and stays marked until the search is cleared, another contract is opened, or a review starts.
 
 The document is the page: a serif body at a comfortable measure, and quiet chrome. Color is reserved for a deletion, an insertion, an acceptance, and the AI tag. Deletions are struck through and insertions are underlined, so a change still reads without color. Decisions stay on the review until Apply, which sends them as one versioned write with `If-Match`. The TypeScript types for responses are generated from the API schema.
 

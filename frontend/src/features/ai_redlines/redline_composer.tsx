@@ -39,15 +39,28 @@ export function RedlineComposer({
         onSubmit(instruction);
       }}
     >
-      <label>
-        <span className="visuallyHidden">What should Claude change?</span>
-        <textarea
-          className={styles.field}
-          value={instruction}
-          placeholder={INSTRUCTION_PLACEHOLDER}
-          onChange={(event) => onInstructionChange(event.target.value)}
-        />
-      </label>
+      <div className={styles.entry}>
+        <label className={styles.instruction}>
+          <span className="visuallyHidden">What should Claude change?</span>
+          <textarea
+            className={styles.field}
+            value={instruction}
+            placeholder={INSTRUCTION_PLACEHOLDER}
+            onChange={(event) => onInstructionChange(event.target.value)}
+          />
+        </label>
+        {instructionMissing ? <p className={styles.note}>{EMPTY_INSTRUCTION_MESSAGE}</p> : null}
+        <div className={styles.actions}>
+          <Button
+            variant={ButtonVariant.Primary}
+            tone={ButtonTone.Default}
+            label="Suggest redlines"
+            shortcut="⌘ Enter"
+            disabled={false}
+            onClick={() => onSubmit(instruction)}
+          />
+        </div>
+      </div>
       <div className={styles.presets}>
         {PRESET_INSTRUCTIONS.map((preset) => (
           <button
@@ -59,17 +72,6 @@ export function RedlineComposer({
             {preset}
           </button>
         ))}
-      </div>
-      {instructionMissing ? <p className={styles.note}>{EMPTY_INSTRUCTION_MESSAGE}</p> : null}
-      <div className={styles.actions}>
-        <Button
-          variant={ButtonVariant.Primary}
-          tone={ButtonTone.Default}
-          label="Suggest redlines"
-          shortcut="⌘ Enter"
-          disabled={false}
-          onClick={() => onSubmit(instruction)}
-        />
       </div>
     </form>
   );

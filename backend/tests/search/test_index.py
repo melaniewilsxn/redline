@@ -6,6 +6,7 @@ from redline.search.chunker import split_into_chunks
 from redline.search.index import (
     SearchIndex,
     create_search_index,
+    find_terms_with_prefix,
     index_document,
     update_indexed_document,
 )
@@ -200,3 +201,24 @@ def assert_same_index(left: SearchIndex, right: SearchIndex) -> None:
         assert left_chunk.token_count == right_chunk.token_count
         assert left_chunk.term_occurrences == right_chunk.term_occurrences
     assert left.term_documents == right.term_documents
+
+
+def test_finds_terms_with_a_prefix_most_widespread_first() -> None:
+    """A prefix returns matching words, and the word in more documents comes first."""
+    index = create_search_index()
+    index_document(index, DOCUMENT_ID, TITLE, CURRENT_VERSION, "master material")
+    index_document(index, OTHER_DOCUMENT_ID, TITLE, CURRENT_VERSION, "master only")
+
+    terms = find_terms_with_prefix(index, "ma", 50)
+
+    assert terms == ["master", "material"]
+
+
+def test_caps_prefix_expansions() -> None:
+    """The prefix list stops at the requested limit."""
+    index = create_search_index()
+    index_document(index, DOCUMENT_ID, TITLE, CURRENT_VERSION, "major maple match")
+
+    terms = find_terms_with_prefix(index, "ma", 2)
+
+    assert terms == ["major", "maple"]

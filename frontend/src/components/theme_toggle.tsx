@@ -4,7 +4,6 @@ import { ThemeChoice, type ThemeChoice as ThemeChoiceValue } from "../hooks/use_
 import styles from "./theme_toggle.module.css";
 
 const THEME_LABEL: Record<ThemeChoiceValue, string> = {
-  [ThemeChoice.System]: "Theme follows the system",
   [ThemeChoice.Light]: "Theme is light",
   [ThemeChoice.Dark]: "Theme is dark",
 };
@@ -49,18 +48,10 @@ function ThemeIcon({ theme }: { theme: ThemeChoiceValue }): ReactNode {
       </svg>
     );
   }
-  if (theme === ThemeChoice.Light) {
-    return (
-      <svg className={styles.icon} viewBox="0 0 16 16" aria-hidden="true">
-        <circle cx="8" cy="8" r="2.5" />
-        <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M3.2 12.8l1.1-1.1M11.7 4.3l1.1-1.1" />
-      </svg>
-    );
-  }
   return (
     <svg className={styles.icon} viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="8" cy="8" r="5.5" />
-      <path d="M8 2.5v11" />
+      <circle cx="8" cy="8" r="2.5" />
+      <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M3.2 12.8l1.1-1.1M11.7 4.3l1.1-1.1" />
     </svg>
   );
 }

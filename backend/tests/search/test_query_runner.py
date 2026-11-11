@@ -4,7 +4,7 @@ import pytest
 
 from redline.search.errors import DocumentNotIndexedError
 from redline.search.index import create_search_index, index_document
-from redline.search.models import AllDocuments, SelectedDocuments
+from redline.search.models import AllDocuments, SearchMatchMode, SelectedDocuments
 from redline.search.query_parser import parse_query
 from redline.search.query_runner import run_query
 
@@ -173,3 +173,72 @@ def test_snippets_are_the_first_matching_chunks_in_document_order() -> None:
     assert "two" in snippets[1].text
     assert "three" in snippets[2].text
     assert "four" not in snippets[2].text
+
+
+def test_prefix_term_matches_a_document_containing_any_expansion() -> None:
+    """A prefix matches each document that contains any word starting that way."""
+    index = create_search_index()
+    index_document(index, FIRST_ID, TITLE, VERSION, "The party shall indemnify the company.")
+    index_document(index, SECOND_ID, TITLE, VERSION, "The indemnity is mutual.")
+    index_document(index, THIRD_ID, TITLE, VERSION, "No related wording here.")
+
+    page = run_query(
+        index,
+        parse_query("indemn", SearchMatchMode.PREFIX),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
+    )
+
+    assert {hit.document_id for hit in page.hits} == {FIRST_ID, SECOND_ID}
+
+
+def test_prefix_term_with_no_expansions_matches_nothing() -> None:
+    """A prefix that starts no indexed word matches nothing."""
+    index = create_search_index()
+    index_document(index, FIRST_ID, TITLE, VERSION, "alpha beta")
+
+    page = run_query(
+        index, parse_query("zzzz", SearchMatchMode.PREFIX), AllDocuments(), PAGE_LIMIT, PAGE_OFFSET
+    )
+
+    assert page.hits == []
+    assert page.total_count == 0
+
+
+def test_prefix_highlights_cover_every_expansion() -> None:
+    """Highlights cover each word the prefix expanded to."""
+    text = "The party shall indemnify the company, and the indemnity is mutual."
+    index = create_search_index()
+    index_document(index, FIRST_ID, TITLE, VERSION, text)
+
+    page = run_query(
+        index,
+        parse_query("indemn", SearchMatchMode.PREFIX),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
+    )
+
+    highlighted = {
+        text[highlight.start : highlight.end] for highlight in page.hits[0].snippets[0].highlights
+    }
+    assert highlighted == {"indemnify", "indemnity"}
+
+
+def test_exact_word_plus_prefix_term_both_must_match() -> None:
+    """An earlier exact word and a prefix must both be present."""
+    index = create_search_index()
+    index_document(index, FIRST_ID, TITLE, VERSION, "Send written notice today.")
+    index_document(index, SECOND_ID, TITLE, VERSION, "Send notice today.")
+    index_document(index, THIRD_ID, TITLE, VERSION, "Send written mail today.")
+
+    page = run_query(
+        index,
+        parse_query("written not", SearchMatchMode.PREFIX),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
+    )
+
+    assert [hit.document_id for hit in page.hits] == [FIRST_ID]

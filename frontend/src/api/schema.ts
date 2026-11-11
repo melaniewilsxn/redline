@@ -459,6 +459,12 @@ export interface components {
       snippets: components["schemas"]["SnippetResponse"][];
     };
     /**
+     * SearchMatchMode
+     * @description Whether the last word of a query must be whole or may be a prefix.
+     * @enum {string}
+     */
+    SearchMatchMode: "exact" | "prefix";
+    /**
      * SearchResponse
      * @description One page of search hits.
      */
@@ -760,6 +766,7 @@ export interface operations {
         document_ids?: string[];
         limit?: number;
         offset?: number;
+        mode?: components["schemas"]["SearchMatchMode"];
       };
       header?: never;
       path?: never;
@@ -793,6 +800,7 @@ export interface operations {
         q: string;
         limit?: number;
         offset?: number;
+        mode?: components["schemas"]["SearchMatchMode"];
       };
       header?: never;
       path: {

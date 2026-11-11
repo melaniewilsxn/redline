@@ -79,6 +79,7 @@ function renderApp() {
 function installFetch(
   applyStatus: number,
   suggestions: ReviewSuggestionResponse[],
+  documentText: string = DOCUMENT_TEXT,
 ): CapturedRequest[] {
   const requests: CapturedRequest[] = [];
   vi.stubGlobal(
@@ -119,7 +120,7 @@ function installFetch(
             id: DOCUMENT_ID,
             title: "Services agreement",
             version: 2,
-            text: DOCUMENT_TEXT,
+            text: documentText,
             created_at: "2026-11-10T00:00:00Z",
             updated_at: "2026-11-10T00:00:00Z",
           },
@@ -131,7 +132,7 @@ function installFetch(
           id: DOCUMENT_ID,
           title: "Services agreement",
           version: 1,
-          text: DOCUMENT_TEXT,
+          text: documentText,
           created_at: "2026-11-10T00:00:00Z",
           updated_at: "2026-11-10T00:00:00Z",
         });
@@ -142,7 +143,7 @@ function installFetch(
             id: DOCUMENT_ID,
             title: "Services agreement",
             version: 1,
-            character_count: DOCUMENT_TEXT.length,
+            character_count: documentText.length,
             updated_at: "2026-11-10T00:00:00Z",
           },
         ],
@@ -256,7 +257,39 @@ describe("review flow", () => {
 
     expect(await screen.findByRole("button", { name: "Previous" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
-    expect(screen.getByText("0 matches")).toBeInTheDocument();
+    expect(screen.getByText("1 of 1")).toBeInTheDocument();
+  });
+
+  it("in-contract find steps through every match", async () => {
+    installFetch(200, [], "shall shall shall shall shall");
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(await screen.findByRole("button", { name: /Services agreement/ }));
+    await user.type(screen.getByPlaceholderText("Search in this contract"), "shall");
+
+    expect(screen.getByText("1 of 5")).toBeInTheDocument();
+    for (let step = 0; step < 4; step += 1) {
+      await user.click(screen.getByRole("button", { name: "Next" }));
+    }
+    expect(screen.getByText("5 of 5")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText("1 of 5")).toBeInTheDocument();
+  });
+
+  it("filters contract names from the first character without searching text", async () => {
+    const requests = installFetch(200, []);
+    const user = userEvent.setup();
+    renderApp();
+    await screen.findByRole("button", { name: /Services agreement/ });
+
+    await user.type(screen.getByPlaceholderText("Search contracts"), "S");
+    await new Promise((resolve) => {
+      setTimeout(resolve, 250);
+    });
+
+    expect(screen.getByRole("heading", { name: "Contracts" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Services agreement/ })).toBeInTheDocument();
+    expect(requests.some((request) => request.url.includes("/search"))).toBe(false);
   });
 
   it("stale review shows the changed-since banner", async () => {

@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 
 export const ThemeChoice = {
-  System: "system",
   Light: "light",
   Dark: "dark",
 } as const;
@@ -10,19 +9,19 @@ export type ThemeChoice = (typeof ThemeChoice)[keyof typeof ThemeChoice];
 const THEME_STORAGE_KEY = "redline-theme";
 
 /**
- * Read the stored theme, falling back to the system choice.
+ * Read the stored theme, falling back to light.
  * @returns The stored choice.
  * @throws Does not throw.
  */
 function readStoredTheme(): ThemeChoice {
   try {
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === ThemeChoice.Light || stored === ThemeChoice.Dark) {
-      return stored;
+    if (stored === ThemeChoice.Dark) {
+      return ThemeChoice.Dark;
     }
-    return ThemeChoice.System;
+    return ThemeChoice.Light;
   } catch {
-    return ThemeChoice.System;
+    return ThemeChoice.Light;
   }
 }
 
@@ -32,10 +31,6 @@ function readStoredTheme(): ThemeChoice {
  * @throws Does not throw.
  */
 function applyTheme(theme: ThemeChoice): void {
-  if (theme === ThemeChoice.System) {
-    delete document.documentElement.dataset.theme;
-    return;
-  }
   document.documentElement.dataset.theme = theme;
 }
 
@@ -46,10 +41,6 @@ function applyTheme(theme: ThemeChoice): void {
  */
 function storeTheme(theme: ThemeChoice): void {
   try {
-    if (theme === ThemeChoice.System) {
-      window.localStorage.removeItem(THEME_STORAGE_KEY);
-      return;
-    }
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
     return;
@@ -57,7 +48,7 @@ function storeTheme(theme: ThemeChoice): void {
 }
 
 /**
- * Keep the light, dark, or system theme and remember the choice.
+ * Keep the light or dark theme and remember the choice.
  * @returns The current choice and a way to change it.
  * @throws Does not throw.
  */

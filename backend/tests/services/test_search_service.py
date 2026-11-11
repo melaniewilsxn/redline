@@ -7,7 +7,7 @@ import pytest
 from redline.editing.apply import apply_changes
 from redline.editing.models import AppliedEdit, Change, RangeTarget
 from redline.search.index import SearchIndex, index_document, update_indexed_document
-from redline.search.models import AllDocuments
+from redline.search.models import AllDocuments, SearchMatchMode
 from redline.services.search_service import SearchService
 from redline.storage.models import StoredDocument
 
@@ -47,7 +47,7 @@ def test_update_with_matching_base_version_uses_incremental_path(
     updated = replace_text(document, edited.text, NEXT_VERSION)
 
     service.update_document(updated, edited.applied_edits, VERSION)
-    page = service.search("beta", AllDocuments(), 10, 0)
+    page = service.search("beta", AllDocuments(), 10, 0, SearchMatchMode.EXACT)
 
     assert calls == ["incremental"]
     assert [hit.document_id for hit in page.hits] == [document.id]
@@ -73,7 +73,7 @@ def test_update_with_other_base_version_reindexes_document(
     updated = replace_text(document, "Hello beta", NEXT_VERSION)
 
     service.update_document(updated, [], VERSION + 5)
-    page = service.search("beta", AllDocuments(), 10, 0)
+    page = service.search("beta", AllDocuments(), 10, 0, SearchMatchMode.EXACT)
 
     assert calls == ["full"]
     assert [hit.document_id for hit in page.hits] == [document.id]
@@ -101,7 +101,7 @@ def test_update_recovers_when_incremental_update_raises(monkeypatch: pytest.Monk
     updated = replace_text(document, "Hello beta", NEXT_VERSION)
 
     service.update_document(updated, [], VERSION)
-    page = service.search("beta", AllDocuments(), 10, 0)
+    page = service.search("beta", AllDocuments(), 10, 0, SearchMatchMode.EXACT)
 
     assert [hit.document_id for hit in page.hits] == [document.id]
 
@@ -139,7 +139,7 @@ def test_add_document_failure_does_not_raise(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr("redline.services.search_service.index_document", raise_failure)
 
     service.add_document(stored("Hello alpha"))
-    page = service.search("alpha", AllDocuments(), 10, 0)
+    page = service.search("alpha", AllDocuments(), 10, 0, SearchMatchMode.EXACT)
 
     assert page.hits == []
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import StrEnum
 from uuid import UUID
 
 from redline.editing.models import TextSpan
@@ -30,6 +31,13 @@ class IndexedChunk:
     term_occurrences: dict[str, list[TokenOccurrence]]
 
 
+class SearchMatchMode(StrEnum):
+    """Whether the last word of a query must be whole or may be a prefix."""
+
+    EXACT = "exact"
+    PREFIX = "prefix"
+
+
 @dataclass(frozen=True)
 class SearchPhrase:
     """A quoted phrase, already normalized."""
@@ -43,6 +51,7 @@ class SearchQuery:
 
     terms: list[str]
     phrases: list[SearchPhrase]
+    prefix_terms: list[str]
 
 
 @dataclass(frozen=True)

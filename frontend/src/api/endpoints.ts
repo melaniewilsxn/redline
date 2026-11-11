@@ -5,6 +5,7 @@ import type {
   ChangeRequest,
   DocumentListResponse,
   DocumentResponse,
+  SearchMatchMode,
   SearchResponse,
 } from "./types.ts";
 
@@ -57,6 +58,7 @@ export function applyChanges(
  * @param query - The words or quoted phrase.
  * @param documentIds - The documents to search, or none to search all of them.
  * @param limit - How many documents to return.
+ * @param mode - Exact words, or a prefix on the last word.
  * @returns The matching documents.
  * @throws {ApiError} When the query is empty or the server cannot be reached.
  */
@@ -64,8 +66,9 @@ export function searchDocuments(
   query: string,
   documentIds: string[],
   limit: number,
+  mode: SearchMatchMode,
 ): Promise<ApiResponse<SearchResponse>> {
-  const parameters = new URLSearchParams({ q: query, limit: String(limit) });
+  const parameters = new URLSearchParams({ q: query, limit: String(limit), mode });
   for (const documentId of documentIds) {
     parameters.append("document_ids", documentId);
   }

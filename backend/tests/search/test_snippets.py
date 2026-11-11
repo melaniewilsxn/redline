@@ -18,7 +18,7 @@ def test_term_highlights_are_absolute_offsets() -> None:
     """A term highlight uses offsets in the whole document."""
     text = "Hello alpha."
     chunk = index_one(text).chunks[0]
-    query = SearchQuery(terms=["alpha"], phrases=[])
+    query = SearchQuery(terms=["alpha"], phrases=[], prefix_terms=[])
 
     highlights = find_chunk_highlights(chunk, query)
 
@@ -67,6 +67,7 @@ def test_overlapping_highlights_are_merged() -> None:
     query = SearchQuery(
         terms=["notice"],
         phrases=[SearchPhrase(terms=["written", "notice"])],
+        prefix_terms=[],
     )
 
     highlights = find_chunk_highlights(chunk, query)
@@ -80,7 +81,9 @@ def test_snippet_does_not_cut_a_highlight() -> None:
     word = "x" * (SNIPPET_MAXIMUM_CHARACTERS + 20)
     text = f"before {word} after"
     document = index_one(text)
-    highlights = find_chunk_highlights(document.chunks[0], SearchQuery(terms=[word], phrases=[]))
+    highlights = find_chunk_highlights(
+        document.chunks[0], SearchQuery(terms=[word], phrases=[], prefix_terms=[])
+    )
 
     snippet = build_snippet(text, document.chunks[0], highlights)
 
@@ -98,7 +101,7 @@ def test_snippet_stays_inside_its_chunk() -> None:
     """A snippet for a later paragraph does not include the paragraph before it."""
     text = "Alpha is here.\n\n" + ("beta " * 30)
     document = index_one(text)
-    query = SearchQuery(terms=["beta"], phrases=[])
+    query = SearchQuery(terms=["beta"], phrases=[], prefix_terms=[])
     beta_chunk = document.chunks[1]
     highlights = find_chunk_highlights(beta_chunk, query)
 

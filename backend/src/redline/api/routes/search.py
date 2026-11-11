@@ -15,7 +15,13 @@ from redline.api.schemas import (
     SnippetResponse,
     TextSpanResponse,
 )
-from redline.search.models import AllDocuments, SearchPage, SearchScope, SelectedDocuments
+from redline.search.models import (
+    AllDocuments,
+    SearchMatchMode,
+    SearchPage,
+    SearchScope,
+    SelectedDocuments,
+)
 from redline.search.query_parser import MAXIMUM_QUERY_CHARACTERS
 from redline.services.search_service import SearchService
 
@@ -31,6 +37,7 @@ def search_documents(
     document_ids: Annotated[list[UUID], Query(default_factory=list)],
     limit: Annotated[int, Query(ge=MINIMUM_PAGE_LIMIT, le=MAXIMUM_PAGE_LIMIT)] = DEFAULT_PAGE_LIMIT,
     offset: Annotated[int, Query(ge=MINIMUM_PAGE_OFFSET)] = MINIMUM_PAGE_OFFSET,
+    mode: Annotated[SearchMatchMode, Query()] = SearchMatchMode.EXACT,
 ) -> SearchResponse:
     """Search every document, or only the ids that were given."""
     if document_ids:
@@ -42,7 +49,7 @@ def search_documents(
     else:
         scope = AllDocuments()
         logger.info(f"Started searching all documents with limit {limit} offset {offset}")
-    page = search_service.search(q, scope, limit, offset)
+    page = search_service.search(q, scope, limit, offset, mode)
     logger.info(f"Finished searching with {page.total_count} hits, limit {limit} offset {offset}")
     return build_search_response(page, limit, offset)
 
@@ -54,10 +61,13 @@ def search_document(
     q: Annotated[str, Query(min_length=1, max_length=MAXIMUM_QUERY_CHARACTERS)],
     limit: Annotated[int, Query(ge=MINIMUM_PAGE_LIMIT, le=MAXIMUM_PAGE_LIMIT)] = DEFAULT_PAGE_LIMIT,
     offset: Annotated[int, Query(ge=MINIMUM_PAGE_OFFSET)] = MINIMUM_PAGE_OFFSET,
+    mode: Annotated[SearchMatchMode, Query()] = SearchMatchMode.EXACT,
 ) -> SearchResponse:
     """Search one document. A document that is not indexed is a 404."""
     logger.info(f"Started searching document {document_id} with limit {limit} offset {offset}")
-    page = search_service.search(q, SelectedDocuments(document_ids=[document_id]), limit, offset)
+    page = search_service.search(
+        q, SelectedDocuments(document_ids=[document_id]), limit, offset, mode
+    )
     logger.info(
         f"Finished searching document {document_id} with {page.total_count} hits, "
         f"limit {limit} offset {offset}"

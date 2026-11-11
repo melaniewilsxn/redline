@@ -10,6 +10,8 @@ from redline.search.tokenizer import tokenize
 
 logger = logging.getLogger(__name__)
 
+MAXIMUM_PREFIX_EXPANSIONS = 50
+
 
 @dataclass
 class IndexedDocument:
@@ -43,6 +45,13 @@ class ChunkRun:
 def create_search_index() -> SearchIndex:
     """Return an empty index."""
     return SearchIndex(documents={}, term_documents={})
+
+
+def find_terms_with_prefix(index: SearchIndex, prefix: str, limit: int) -> list[str]:
+    """Return vocabulary terms that start with prefix, the most widespread first."""
+    matches = [term for term in index.term_documents if term.startswith(prefix)]
+    matches.sort(key=lambda term: (-len(index.term_documents[term]), term))
+    return matches[:limit]
 
 
 def index_chunk(text: str, span: TextSpan) -> IndexedChunk:
