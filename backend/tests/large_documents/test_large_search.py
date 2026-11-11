@@ -7,7 +7,7 @@ from redline.search.index import (
     index_document,
     update_indexed_document,
 )
-from redline.search.models import AllDocuments
+from redline.search.models import AllDocuments, SearchMatchMode
 from redline.search.query_parser import parse_query
 from redline.search.query_runner import run_query
 from tests.fixtures.large_contract import (
@@ -50,7 +50,13 @@ def test_phrase_near_end_of_large_document_is_found() -> None:
     index = create_search_index()
     index_document(index, DOCUMENT_ID, TITLE, CURRENT_VERSION, text)
 
-    page = run_query(index, parse_query(f'"{phrase}"'), AllDocuments(), PAGE_LIMIT, PAGE_OFFSET)
+    page = run_query(
+        index,
+        parse_query(f'"{phrase}"', SearchMatchMode.EXACT),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
+    )
 
     assert page.total_count == 1
     highlights = [

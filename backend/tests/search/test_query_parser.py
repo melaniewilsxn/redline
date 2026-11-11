@@ -7,7 +7,7 @@ from redline.search.query_parser import parse_query
 
 def test_unquoted_words_become_terms() -> None:
     """Unquoted words become terms, in order."""
-    query = parse_query("alpha beta")
+    query = parse_query("alpha beta", SearchMatchMode.EXACT)
 
     assert query.terms == ["alpha", "beta"]
     assert query.phrases == []
@@ -15,7 +15,7 @@ def test_unquoted_words_become_terms() -> None:
 
 def test_quoted_words_become_a_phrase() -> None:
     """Two or more quoted words become one phrase."""
-    query = parse_query('"written notice"')
+    query = parse_query('"written notice"', SearchMatchMode.EXACT)
 
     assert query.terms == []
     assert query.phrases == [SearchPhrase(terms=["written", "notice"])]
@@ -23,7 +23,7 @@ def test_quoted_words_become_a_phrase() -> None:
 
 def test_single_word_in_quotes_becomes_a_term() -> None:
     """A quoted part with one word is an unquoted term."""
-    query = parse_query('"hello"')
+    query = parse_query('"hello"', SearchMatchMode.EXACT)
 
     assert query.terms == ["hello"]
     assert query.phrases == []
@@ -31,14 +31,14 @@ def test_single_word_in_quotes_becomes_a_term() -> None:
 
 def test_duplicate_terms_are_removed_in_order() -> None:
     """A repeated term is kept once, at its first position."""
-    query = parse_query("beta alpha beta")
+    query = parse_query("beta alpha beta", SearchMatchMode.EXACT)
 
     assert query.terms == ["beta", "alpha"]
 
 
 def test_unmatched_quote_is_ignored() -> None:
     """An unmatched quote is ignored, and the words around it stay terms."""
-    query = parse_query('say "hello')
+    query = parse_query('say "hello', SearchMatchMode.EXACT)
 
     assert query.terms == ["say", "hello"]
     assert query.phrases == []
@@ -47,12 +47,12 @@ def test_unmatched_quote_is_ignored() -> None:
 def test_query_with_no_words_raises_empty_query_error() -> None:
     """A query with no words raises EmptyQueryError."""
     with pytest.raises(EmptyQueryError):
-        parse_query('"???"')
+        parse_query('"???"', SearchMatchMode.EXACT)
 
 
 def test_query_terms_are_normalized_like_document_terms() -> None:
     """A possessive in the query is folded the same way as in a document."""
-    query = parse_query("Company's")
+    query = parse_query("Company's", SearchMatchMode.EXACT)
 
     assert query.terms == ["company"]
 
@@ -85,7 +85,7 @@ def test_prefix_mode_leaves_a_trailing_quoted_phrase_exact() -> None:
 
 def test_exact_mode_never_produces_prefix_terms() -> None:
     """Exact mode keeps every word as a whole term."""
-    query = parse_query("written indemn")
+    query = parse_query("written indemn", SearchMatchMode.EXACT)
 
     assert query.terms == ["written", "indemn"]
     assert query.prefix_terms == []

@@ -8,7 +8,7 @@
 
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-6);
@@ -35,18 +35,97 @@
   font-size: 12px;
 }
 
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.fileActions {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-2);
+}
+
+.actionNote {
+  margin: var(--space-2) 0 0;
+  max-width: 360px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-popover);
+}
+
+.menuItem {
+  border: 0;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  text-align: left;
+}
+
+.menuItem:hover {
+  background: var(--surface-selected);
+}
+
+.menuNote {
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .search {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.matches {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
 
 .field {
-  width: 180px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 240px;
   border: 0.5px solid var(--border);
   border-radius: var(--radius-control);
   padding: var(--space-2) var(--space-3);
   background: var(--surface-page);
+}
+
+.field:focus-within {
+  border-color: var(--focus-ring);
+}
+
+.findInput {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.findInput:focus {
+  outline: none;
 }
 
 .matchCount {

@@ -9,9 +9,7 @@ MAXIMUM_QUERY_CHARACTERS = 500
 MINIMUM_PHRASE_TERMS = 2
 
 
-def parse_query(
-    query_text: str, match_mode: SearchMatchMode = SearchMatchMode.EXACT
-) -> SearchQuery:
+def parse_query(query_text: str, match_mode: SearchMatchMode) -> SearchQuery:
     """Turn query text into terms, phrases, and one prefix term.
     A query with no words is an error."""
     terms: list[str] = []

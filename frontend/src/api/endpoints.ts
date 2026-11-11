@@ -22,6 +22,23 @@ export function listDocuments(): Promise<ApiResponse<DocumentListResponse>> {
 }
 
 /**
+ * Store a new contract.
+ * @param title - The contract title.
+ * @param text - The contract text.
+ * @returns The new contract and its ETag.
+ * @throws {ApiError} When the contract cannot be stored.
+ */
+export function createDocument(
+  title: string,
+  text: string,
+): Promise<ApiResponse<DocumentResponse>> {
+  return requestJson<DocumentResponse>("/documents", {
+    method: "POST",
+    body: JSON.stringify({ title, text, author: REVIEWER_NAME }),
+  });
+}
+
+/**
  * Load one document.
  * @param documentId - The document to open.
  * @returns The document and the ETag of its current version.

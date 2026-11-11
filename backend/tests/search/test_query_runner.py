@@ -23,7 +23,13 @@ def test_document_missing_one_term_is_excluded() -> None:
     index_document(index, FIRST_ID, TITLE, VERSION, "alpha only")
     index_document(index, SECOND_ID, TITLE, VERSION, "alpha beta")
 
-    page = run_query(index, parse_query("alpha beta"), AllDocuments(), PAGE_LIMIT, PAGE_OFFSET)
+    page = run_query(
+        index,
+        parse_query("alpha beta", SearchMatchMode.EXACT),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
+    )
 
     assert [hit.document_id for hit in page.hits] == [SECOND_ID]
 
@@ -33,7 +39,13 @@ def test_document_with_all_terms_is_included() -> None:
     index = create_search_index()
     index_document(index, FIRST_ID, TITLE, VERSION, "alpha beta")
 
-    page = run_query(index, parse_query("alpha beta"), AllDocuments(), PAGE_LIMIT, PAGE_OFFSET)
+    page = run_query(
+        index,
+        parse_query("alpha beta", SearchMatchMode.EXACT),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
+    )
 
     assert [hit.document_id for hit in page.hits] == [FIRST_ID]
     assert page.total_count == 1
@@ -45,7 +57,11 @@ def test_phrase_matches_consecutive_words() -> None:
     index_document(index, FIRST_ID, TITLE, VERSION, "Please send written notice today.")
 
     page = run_query(
-        index, parse_query('"written notice"'), AllDocuments(), PAGE_LIMIT, PAGE_OFFSET
+        index,
+        parse_query('"written notice"', SearchMatchMode.EXACT),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
     )
 
     assert [hit.document_id for hit in page.hits] == [FIRST_ID]
@@ -57,7 +73,11 @@ def test_phrase_does_not_match_across_paragraphs() -> None:
     index_document(index, FIRST_ID, TITLE, VERSION, "written\n\nnotice")
 
     page = run_query(
-        index, parse_query('"written notice"'), AllDocuments(), PAGE_LIMIT, PAGE_OFFSET
+        index,
+        parse_query('"written notice"', SearchMatchMode.EXACT),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
     )
 
     assert page.hits == []
@@ -70,7 +90,11 @@ def test_phrase_words_apart_do_not_match() -> None:
     index_document(index, FIRST_ID, TITLE, VERSION, "written extra notice")
 
     page = run_query(
-        index, parse_query('"written notice"'), AllDocuments(), PAGE_LIMIT, PAGE_OFFSET
+        index,
+        parse_query('"written notice"', SearchMatchMode.EXACT),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
     )
 
     assert page.hits == []
@@ -84,7 +108,7 @@ def test_selected_documents_limit_the_scope() -> None:
 
     page = run_query(
         index,
-        parse_query("alpha"),
+        parse_query("alpha", SearchMatchMode.EXACT),
         SelectedDocuments(document_ids=[SECOND_ID]),
         PAGE_LIMIT,
         PAGE_OFFSET,
@@ -101,7 +125,7 @@ def test_selected_unknown_document_raises_document_not_indexed_error() -> None:
     with pytest.raises(DocumentNotIndexedError) as raised:
         run_query(
             index,
-            parse_query("alpha"),
+            parse_query("alpha", SearchMatchMode.EXACT),
             SelectedDocuments(document_ids=[missing_id]),
             PAGE_LIMIT,
             PAGE_OFFSET,
@@ -116,7 +140,13 @@ def test_hits_are_ordered_by_score() -> None:
     index_document(index, FIRST_ID, TITLE, VERSION, "alpha alpha beta beta")
     index_document(index, SECOND_ID, TITLE, VERSION, "alpha beta beta beta")
 
-    page = run_query(index, parse_query("alpha"), AllDocuments(), PAGE_LIMIT, PAGE_OFFSET)
+    page = run_query(
+        index,
+        parse_query("alpha", SearchMatchMode.EXACT),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
+    )
 
     assert [hit.document_id for hit in page.hits] == [FIRST_ID, SECOND_ID]
     assert page.hits[0].score > page.hits[1].score
@@ -128,7 +158,13 @@ def test_equal_scores_are_ordered_by_document_id() -> None:
     index_document(index, FIRST_ID, TITLE, VERSION, "alpha beta")
     index_document(index, THIRD_ID, TITLE, VERSION, "alpha beta")
 
-    page = run_query(index, parse_query("alpha"), AllDocuments(), PAGE_LIMIT, PAGE_OFFSET)
+    page = run_query(
+        index,
+        parse_query("alpha", SearchMatchMode.EXACT),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
+    )
 
     assert [hit.document_id for hit in page.hits] == [THIRD_ID, FIRST_ID]
 
@@ -140,7 +176,7 @@ def test_paging_applies_limit_and_offset() -> None:
     index_document(index, FIRST_ID, TITLE, VERSION, "alpha alpha")
     index_document(index, SECOND_ID, TITLE, VERSION, "alpha alpha alpha")
 
-    page = run_query(index, parse_query("alpha"), AllDocuments(), 1, 1)
+    page = run_query(index, parse_query("alpha", SearchMatchMode.EXACT), AllDocuments(), 1, 1)
 
     assert page.total_count == 3
     assert len(page.hits) == 1
@@ -153,7 +189,11 @@ def test_match_count_includes_terms_and_phrases() -> None:
     index_document(index, FIRST_ID, TITLE, VERSION, "alpha alpha beta beta")
 
     page = run_query(
-        index, parse_query('alpha "beta beta"'), AllDocuments(), PAGE_LIMIT, PAGE_OFFSET
+        index,
+        parse_query('alpha "beta beta"', SearchMatchMode.EXACT),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
     )
 
     assert page.hits[0].match_count == 3
@@ -165,7 +205,13 @@ def test_snippets_are_the_first_matching_chunks_in_document_order() -> None:
     index = create_search_index()
     index_document(index, FIRST_ID, TITLE, VERSION, text)
 
-    page = run_query(index, parse_query("alpha"), AllDocuments(), PAGE_LIMIT, PAGE_OFFSET)
+    page = run_query(
+        index,
+        parse_query("alpha", SearchMatchMode.EXACT),
+        AllDocuments(),
+        PAGE_LIMIT,
+        PAGE_OFFSET,
+    )
 
     snippets = page.hits[0].snippets
     assert len(snippets) == 3

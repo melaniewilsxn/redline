@@ -14,7 +14,7 @@ from redline.search.index import (
     index_document,
     update_indexed_document,
 )
-from redline.search.models import AllDocuments, SearchQuery
+from redline.search.models import AllDocuments, SearchMatchMode, SearchQuery
 from redline.search.query_parser import parse_query
 from redline.search.query_runner import run_query
 from tests.fixtures.large_contract import (
@@ -124,7 +124,7 @@ def run_benchmark() -> list[BenchmarkRow]:
         ),
         ComparedBenchmarkRow(
             "Two words supplier reject",
-            measure_query(indexed, parse_query("supplier reject")),
+            measure_query(indexed, parse_query("supplier reject", SearchMatchMode.EXACT)),
             measure(lambda: scan_both(supplier_pattern, reject_pattern, contract)),
         ),
         ComparedBenchmarkRow(
@@ -153,7 +153,7 @@ def query_row(
     pattern: re.Pattern[str],
 ) -> BenchmarkRow:
     """Time one query against a case-insensitive scan of the same text."""
-    query = parse_query(query_text)
+    query = parse_query(query_text, SearchMatchMode.EXACT)
     return ComparedBenchmarkRow(
         case,
         measure_query(index, query),
@@ -171,7 +171,7 @@ def cross_document_row() -> BenchmarkRow:
     index = create_search_index()
     for number, text in enumerate(texts, start=1):
         index_document(index, uuid.UUID(int=number), f"Contract {number}", CURRENT_VERSION, text)
-    query = parse_query('"escrow agent" holdback')
+    query = parse_query('"escrow agent" holdback', SearchMatchMode.EXACT)
     phrase = re.compile(re.escape("escrow agent"), re.IGNORECASE)
     word = re.compile(r"\bholdback\b", re.IGNORECASE)
     return ComparedBenchmarkRow(

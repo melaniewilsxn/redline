@@ -4,6 +4,15 @@
 
 Redline stores plain-text contracts, suggests redlines with Claude, and applies the ones you accept as one new version. Each edit points at text by a character range, by the nth exact match, or by the words around a phrase, and a write succeeds only when the document is still the version the client read.
 
+## How it fits a negotiation
+
+One round of a contract negotiation is a cycle of drafts. Redline keeps each draft as a version of the same contract.
+
+1. The other side's draft comes in as a new contract (version 1), from a Word file, a text file, or pasted text.
+2. You review it with Claude, accepting and rejecting suggestions.
+3. You apply your decisions as the next version and download it to send back.
+4. When their reply comes back, Upload next draft saves it as the next version of the same contract, and the cycle repeats.
+
 ![A pending playbook review, in the light theme](docs/screenshots/review_light.png)
 
 ## Setup
@@ -161,6 +170,8 @@ A request enters through `api`, which validates the payload, checks `If-Match`, 
 
 ## API design
 
+Documents are plain text by design. Edit targets, versioned writes, search highlights, and AI suggestions all point at a character offset, so a position in the document is a character offset. Rich formatting needs a document model where a position is no longer a character offset.
+
 Documents and versions are resources. Edits are a `PATCH` with our own change format, because JSON Patch addresses JSON fields, not spans of the document text. Search is a `GET` because it only reads, and the query, the document ids, and the page can be bookmarked. `POST /documents/{id}/ai-redlines` is an action: it runs an expensive model call from an instruction, returns a computed result, and is not repeatable. Applying the suggestions the reviewer accepts reuses `PATCH` instead of adding an accept endpoint.
 
 A read that is a single query calls the repository directly. A write goes through the document service, which is the only place that applies edits.
@@ -276,7 +287,11 @@ Routes are synchronous. psycopg is synchronous, and FastAPI runs sync routes in 
 
 The review screen is a separate frontend. `make ui` proxies `/api` to the API, so the page and the API share an origin and the browser can read the `ETag`. `make ui-types` regenerates `frontend/src/api/schema.ts` from the running API.
 
-Open http://localhost:5173. Choose a contract, then ask for redlines. Three presets fill the instruction and send it: review against the playbook, make the indemnification mutual, or cap liability at 12 months' fees. Each suggestion appears in the contract as a word-level deletion and insertion, with a title and the reason in the changes column. Accept or reject each one, then apply the accepted ones. That writes one new version, and only if the contract is still the version the review was read from. If it is not, the screen says the contract changed and offers to run the review again.
+Open http://localhost:5173. Add a contract from a `.docx`, a `.txt`, or pasted text, or choose one that is already there, then ask for redlines. Download the saved version as a Word file or as plain text. Upload next draft saves the other side's reply as the next version of that same contract.
+
+![Adding a contract from a Word file](docs/screenshots/new_contract.png)
+
+Open a contract, then ask for redlines. Three presets fill the instruction and send it: review against the playbook, make the indemnification mutual, or cap liability at 12 months' fees. Each suggestion appears in the contract as a word-level deletion and insertion, with a title and the reason in the changes column. Accept or reject each one, then apply the accepted ones. That writes one new version, and only if the contract is still the version the review was read from. If it is not, the screen says the contract changed and offers to run the review again.
 
 ![The same pending review in the dark theme](docs/screenshots/review_dark.png)
 
@@ -290,7 +305,7 @@ Open http://localhost:5173. Choose a contract, then ask for redlines. Three pres
 | A | Accept the active suggestion |
 | R | Reject the active suggestion |
 | U | Undo the active decision |
-| / | Focus search |
+| / | Focus find in the open contract, or the contract list when none is open |
 | ⌘ Enter or Ctrl Enter | Send the instruction, or apply once a review is open |
 | Esc | Clear search, or clear the instruction |
 | Enter, Shift Enter | Next or previous match in the open contract |
@@ -305,8 +320,13 @@ Built with AI coding assistance, as the brief allows. The core is the editing en
 
 ## Next steps
 
+**Meet lawyers in Word.** Lawyers live in Microsoft Word, so the production client is a Word add-in (Office.js) calling this same API. Claude's suggestions appear as native Word tracked changes, with the rationale as comments. Search and the review panel live in Word's task pane. Formatting stays untouched, because the add-in maps character ranges onto Word's own ranges. The engine, versioning, search, and AI anchoring carry over unchanged.
+
+- Your own edits as tracked changes in the web UI, staged next to Claude's and applied as one version.
+- Keeping Word formatting on import and export. Import and download today keep the words, not the formatting.
+- PDF import.
+- A blackline compare between versions, showing what the other side changed in their draft.
 - Auth, users, and per-document permissions. The author is a plain name field.
-- Rich text and .docx import and export. Documents are plain text.
 - Comment threads separate from proposal rationales.
 - A phrase-match boost on top of BM25.
 - A map from a term to the paragraphs that contain it, so a phrase search does not walk every paragraph.
@@ -314,7 +334,6 @@ Built with AI coding assistance, as the brief allows. The core is the editing en
 - A search mode that can loosen AND semantics. The current search requires every word.
 - Embedding-based semantic search with hybrid re-ranking.
 - Stored proposals with rebasing. The algorithm is in `editing/rebase.py`, with tests. Moving a proposal forward when an edit lands, and accept and reject, are not stored yet.
-- Comparing two versions.
 - Multi-pattern target resolution (Aho–Corasick) for very large batches of text-targeted changes.
 - Multi-process deployment. The in-process search index assumes a single server.
 - Storing versions as deltas instead of full copies.

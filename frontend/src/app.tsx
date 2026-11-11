@@ -2,22 +2,27 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 
 import { ApiError } from "./api/client.ts";
-import { REVIEWER_NAME, applyChanges } from "./api/endpoints.ts";
+import { REVIEWER_NAME, applyChanges, createDocument } from "./api/endpoints.ts";
 import { ApiErrorType, type ChangeRequest, type TextSpanResponse } from "./api/types.ts";
+import { Button, ButtonTone, ButtonVariant } from "./components/button.tsx";
 import { ThemeToggle } from "./components/theme_toggle.tsx";
 import { Toast } from "./components/toast.tsx";
 import { Wordmark } from "./components/wordmark.tsx";
 import { DocumentList } from "./features/documents/document_list.tsx";
+import { NewContractMode, NewContractPanel } from "./features/documents/new_contract_panel.tsx";
 import { useDocument, useDocumentList } from "./features/documents/use_documents.ts";
 import { useSuggestRedlines } from "./features/ai_redlines/use_suggest_redlines.ts";
 import { ChangesPanel } from "./features/redline/changes_panel.tsx";
 import { DocumentView } from "./features/redline/document_view.tsx";
 import {
   MoveDirection,
+  RangeTargetType,
   ReviewActionType,
   getAcceptedChanges,
   reduceReview,
+  type ReviewState,
 } from "./features/redline/review_state.ts";
+import { SuggestionStatus } from "./features/redline/document_segments.ts";
 import { SearchBox } from "./features/search/search_box.tsx";
 import { SearchResults } from "./features/search/search_results.tsx";
 import { useCrossDocumentSearch } from "./features/search/use_search.ts";
@@ -28,6 +33,8 @@ import styles from "./app.module.css";
 const TOAST_DURATION_MS = 4_000;
 const EMPTY_APPLY_NOTE = "Accept at least one change to apply.";
 const NETWORK_MESSAGE = "Can't reach the Redline server. Check that it's running.";
+const DOWNLOAD_NOTE = "Downloads the saved version. Apply your changes first to include them.";
+const UPLOAD_NOTE = "Apply or discard your review before uploading the next draft.";
 
 interface ApplyRequest {
   documentId: string;
@@ -51,6 +58,7 @@ export function App(): ReactNode {
   const queryClient = useQueryClient();
   const { theme, setTheme } = useTheme();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const findInputRef = useRef<HTMLInputElement>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [jump, setJump] = useState<SearchJump | null>(null);
@@ -61,6 +69,7 @@ export function App(): ReactNode {
   const [staleReview, setStaleReview] = useState(false);
   const [applyNote, setApplyNote] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [importMode, setImportMode] = useState<NewContractMode | null>(null);
   const documents = useDocumentList();
   const openDocument = useDocument(selectedDocumentId);
   const search = useCrossDocumentSearch(searchQuery);
@@ -130,10 +139,34 @@ export function App(): ReactNode {
           <SearchBox
             query={searchQuery}
             inputRef={searchInputRef}
+            showSlashHint={openDocument.data?.body === undefined}
             onQueryChange={changeSearchQuery}
           />
+          <div className={styles.newContract}>
+            <Button
+              variant={ButtonVariant.Secondary}
+              tone={ButtonTone.Default}
+              label="+ New contract"
+              shortcut=""
+              disabled={false}
+              onClick={() => setImportMode(NewContractMode.NewContract)}
+            />
+          </div>
           <div className={styles.railBody}>
-            {search.trimmedQuery !== "" ? (
+            {importMode !== null ? (
+              <NewContractPanel
+                mode={importMode}
+                savedText={openDocument.data?.body.text ?? ""}
+                saveLabel={
+                  importMode === NewContractMode.NextDraft
+                    ? `Save as version ${(openDocument.data?.body.version ?? 0) + 1}`
+                    : "Add contract"
+                }
+                onCancel={() => setImportMode(null)}
+                onSaveNewContract={addContract}
+                onSaveNextDraft={saveNextDraft}
+              />
+            ) : search.trimmedQuery !== "" ? (
               <SearchResults
                 query={search.trimmedQuery}
                 documents={documents.data?.body.documents ?? []}
@@ -162,6 +195,15 @@ export function App(): ReactNode {
           focusEnd={jumpForDocument?.focusEnd ?? null}
           loading={selectedDocumentId !== null && openDocument.isLoading}
           failed={openDocument.isError}
+          findInputRef={findInputRef}
+          downloadNote={acceptedSuggestionCount(review) > 0 ? DOWNLOAD_NOTE : ""}
+          uploadNote={acceptedSuggestionCount(review) > 0 ? UPLOAD_NOTE : ""}
+          onUploadNextDraft={() => {
+            if (acceptedSuggestionCount(review) > 0) {
+              return;
+            }
+            setImportMode(NewContractMode.NextDraft);
+          }}
           onSelectSuggestion={(suggestionId) =>
             dispatchReview({ type: ReviewActionType.Selected, suggestionId })
           }
@@ -211,6 +253,55 @@ export function App(): ReactNode {
    * @param documentId - The contract to open.
    * @throws Does not throw.
    */
+  /**
+   * Store a new contract and open it.
+   * @param title - The contract title.
+   * @param text - The contract text.
+   * @throws {ApiError} When the contract cannot be stored.
+   */
+  async function addContract(title: string, text: string): Promise<void> {
+    const response = await createDocument(title, text);
+    setImportMode(null);
+    selectDocument(response.body.id);
+    setToast(`Added ${title}`);
+    await queryClient.invalidateQueries({ queryKey: ["documents"] });
+  }
+
+  /**
+   * Save the other side's draft as the next version of the open contract.
+   * @param text - The draft text.
+   * @throws {ApiError} When the draft cannot be saved.
+   */
+  async function saveNextDraft(text: string): Promise<void> {
+    const document = openDocument.data?.body;
+    const etag = openDocument.data?.etag;
+    if (document === undefined || etag === null || etag === undefined) {
+      throw new ApiError(0, ApiErrorType.InternalError, NETWORK_MESSAGE);
+    }
+    try {
+      const response = await applyChanges(
+        document.id,
+        etag,
+        [wholeDocumentChange(document.text, text)],
+        REVIEWER_NAME,
+      );
+      dispatchReview({ type: ReviewActionType.Cleared });
+      setJump(null);
+      setImportMode(null);
+      setStaleReview(false);
+      setToast(`Saved their draft as version ${response.body.document.version}.`);
+      await queryClient.invalidateQueries({ queryKey: ["document", document.id] });
+      await queryClient.invalidateQueries({ queryKey: ["documents"] });
+    } catch (error) {
+      if (error instanceof ApiError && error.errorType === ApiErrorType.PreconditionFailed) {
+        setStaleReview(true);
+        setImportMode(null);
+        return;
+      }
+      throw error;
+    }
+  }
+
   function selectDocument(documentId: string): void {
     if (documentId !== selectedDocumentId) {
       discardReview();
@@ -410,10 +501,15 @@ export function App(): ReactNode {
   }
 
   /**
-   * Put the cursor in the contract search.
+   * Put the cursor in find for the open contract, or in the contract list search.
    * @throws Does not throw.
    */
   function focusSearch(): void {
+    const findField = findInputRef.current;
+    if (findField !== null) {
+      findField.focus();
+      return;
+    }
     searchInputRef.current?.focus();
   }
 
@@ -428,6 +524,34 @@ export function App(): ReactNode {
     }
     setTheme(ThemeChoice.Light);
   }
+}
+
+/**
+ * Count accepted suggestions that are not yet applied.
+ * @param state - The open review, or null.
+ * @returns How many suggestions are accepted.
+ * @throws Does not throw.
+ */
+function acceptedSuggestionCount(state: ReviewState | null): number {
+  if (state === null) {
+    return 0;
+  }
+  return state.suggestions.filter((suggestion) => suggestion.status === SuggestionStatus.Accepted)
+    .length;
+}
+
+/**
+ * Replace the whole saved contract with the next draft.
+ * @param savedText - The text that is saved now.
+ * @param replacement - The other side's draft.
+ * @returns The one range change.
+ * @throws Does not throw.
+ */
+function wholeDocumentChange(savedText: string, replacement: string): ChangeRequest {
+  return {
+    target: { type: RangeTargetType.Range, start: 0, end: savedText.length },
+    replacement,
+  };
 }
 
 /**

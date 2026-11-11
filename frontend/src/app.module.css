@@ -25,6 +25,10 @@
   min-height: 0;
 }
 
+.newContract {
+  margin: 0 var(--space-3) var(--space-3);
+}
+
 .narrow {
   display: none;
   height: 100%;

@@ -1,4 +1,4 @@
-# Phase 7: Add Contracts, Edit as Tracked Changes, Download
+# Phase 7: Add Contracts and Download
 
 **Project:** Redline (see `docs/plans/build-plan.md`)
 **Audience:** the coding agent building this phase
@@ -7,15 +7,19 @@ Read and follow the `code-guidelines` skill before writing any code. If this pla
 
 ## Goal
 
-Make the whole negotiation round work in the UI:
+Make a whole negotiation round demoable in the UI:
 1. bring in the other side's draft;
-2. mark it up with your own edits and Claude's suggestions;
-3. apply one new version;
-4. download it to send back.
+2. review it with Claude;
+3. apply your decisions as the next version;
+4. download that version to send back.
 
-**This phase is frontend only.** Everything it needs already exists in the API: `POST /documents`, `PATCH /documents/{id}` with range targets and `If-Match`, and `GET /documents/{id}`.
+**This phase is frontend only.** It uses the existing `POST /documents`, `PATCH /documents/{id}`, and `GET /documents/{id}`.
 
-**Out of scope:** keeping Word formatting (documents stay plain text), PDF import, rich text editing, and comparing versions.
+**Out of scope, recorded as next steps in the README:**
+- typing your own edits in the browser;
+- keeping Word formatting;
+- PDF import;
+- a Word add-in.
 
 ## Files
 
@@ -24,172 +28,129 @@ frontend/
 ├── package.json                                  # mammoth, docx (section 1)
 └── src/
     ├── api/endpoints.ts                          # createDocument (section 2)
+    ├── test_fixtures/two_sections.docx           # section 5 (new)
     ├── features/
     │   ├── documents/
     │   │   ├── new_contract_panel.tsx / .module.css   # section 2 (new)
     │   │   ├── contract_import.ts                     # section 2 (new)
-    │   │   ├── contract_import.test.ts                # section 6 (new)
-    │   │   ├── contract_export.ts                     # section 4 (new)
-    │   │   ├── contract_export.test.ts                # section 6 (new)
+    │   │   ├── contract_import.test.ts                # section 5 (new)
+    │   │   ├── contract_export.ts                     # section 3 (new)
+    │   │   ├── contract_export.test.ts                # section 5 (new)
     │   │   └── document_list.tsx                      # New contract button
-    │   └── redline/
-    │       ├── paragraph_edit.ts                      # section 3 (new)
-    │       ├── paragraph_edit.test.ts                 # section 6 (new)
-    │       ├── paragraph_editor.tsx / .module.css     # section 3 (new)
-    │       ├── review_state.ts                        # section 3
-    │       ├── review_state.test.ts                   # section 6
-    │       ├── document_segments.ts                   # source on suggestions
-    │       ├── document_view.tsx                      # editing, Download menu
-    │       ├── suggestion_card.tsx                    # "You" cards
-    │       └── changes_panel.tsx                      # review without AI
-    ├── hooks/use_keyboard_shortcuts.ts           # E binding
-    └── review_flow.test.tsx                      # section 6
+    │   └── redline/document_view.tsx                  # Download menu
+    └── review_flow.test.tsx                      # section 5
 ```
 
 ## 1. Libraries
 
-- **`mammoth`** reads `.docx` files in the browser. Use `mammoth.extractRawText({ arrayBuffer })`, which returns paragraphs separated by blank lines. Check its current browser import path and version.
-- **`docx`** writes `.docx` files: `Document`, `Paragraph`, `HeadingLevel`, and `Packer.toBlob`.
+- **`mammoth`** reads `.docx` in the browser: `mammoth.extractRawText({ arrayBuffer })` returns paragraphs separated by blank lines. Check its current browser import path.
+- **`docx`** writes `.docx`: `Document`, `Paragraph`, `HeadingLevel`, and `Packer.toBlob`.
 
-Pin both exactly. Both are established libraries for solved problems; don't hand-roll either format.
+Pin both exactly. Both are established libraries for solved problems, so don't hand-roll either format.
 
 ## 2. Add a contract
 
-- **`createDocument(title, text)`** in `api/endpoints.ts` calls `POST /documents` with `author: REVIEWER_NAME`. It returns the document and its ETag.
-- **New contract button:** at the top of the document list (secondary button, `+` icon, label "New contract"). It replaces the document list with `NewContractPanel` until saved or cancelled.
+- **`createDocument(title, text)`** in `api/endpoints.ts` calls `POST /documents` with `author: REVIEWER_NAME`, and returns the document and its ETag.
+- **New contract button** at the top of the document list (secondary, `+` icon, "New contract"). It replaces the document list with `NewContractPanel` until the contract is saved or cancelled.
 - **`NewContractPanel`:**
-  - a drop zone that also opens a file picker, with the label "Drop a .docx or .txt file, or choose one";
+  - a drop zone that also opens a file picker: "Drop a .docx or .txt file, or choose one";
   - **or** a "Paste text instead" link that shows a textarea;
-  - a **Title** field. When a file is chosen, it's filled from the file name without its extension; you can edit it.
+  - a **Title** field, filled from the file name without its extension when a file is chosen, and editable;
   - **Add contract** (primary) and **Cancel**.
 
   While a file is read, show "Reading {file name}…". After reading, show the character count and the first two paragraphs as a preview, so you can see it came out right.
 - **`contract_import.ts`**, pure where possible:
   - `getImportType(fileName)` returns the `ImportType` constant (`Docx`, `Text`, or `Unsupported`) from the extension, case-insensitive.
   - `readContractText(file)` reads `.txt` as UTF-8, and `.docx` through mammoth.
-  - `normalizeContractText(text)` converts `\r\n` to `\n`, trims trailing spaces on each line, collapses runs of three or more newlines to one blank line, and trims the ends. This keeps the paragraph rules working (sections split on blank lines, and `^\d+\.` headings).
+  - `normalizeContractText(text)` converts `\r\n` to `\n`, trims trailing spaces on each line, collapses runs of three or more newlines to one blank line, and trims the ends. Sections then split on blank lines, and `^\d+\.` headings work.
 - **Errors:**
-  - an unsupported type: "Choose a .docx or .txt file";
-  - an empty result: "That file has no text we can read";
-  - mammoth failing: "Couldn't read that Word file. Try saving it as .docx again, or paste the text";
-  - a title missing: "Add a title";
-  - the API failing: the existing error messages.
-
-  A file over 10MB shows "Contracts over 10MB aren't supported yet" before reading.
+  - unsupported type: "Choose a .docx or .txt file";
+  - empty result: "That file has no text we can read";
+  - mammoth failure: "Couldn't read that Word file. Try saving it as .docx again, or paste the text";
+  - no title: "Add a title";
+  - an API failure: the existing messages;
+  - a file over 10MB is refused before reading: "Contracts over 10MB aren't supported yet".
 - **On success:** refresh the document list, open the new contract, and show the toast "Added {title}".
+- **10MB cap:** applies to pasted text as well as files, with the same message.
+- **Button placement:** the New contract button sits above the list area, so it stays visible in the empty state and while search results show.
 
-## 3. Your own edits as tracked changes
+### Upload the next draft
 
-### Model
+When the other side replies, their draft becomes the **next version of the same contract**, which is what version history is for.
+- An **Upload next draft** button in the document header (secondary, next to Download) opens the same import panel, in a "next draft" mode: no title field, and the button reads **Save as version {n + 1}**.
+- Saving sends one `PATCH` whose single change is a `RangeTarget` covering the whole saved text (`start: 0`, `end: text.length`), with the new text as the replacement, `If-Match` set to the document's current ETag, and `author: REVIEWER_NAME`. No new endpoint is needed.
+- An identical draft ("This draft matches the saved version") is refused before sending. A 412 shows the existing stale banner.
+- It's not allowed while a review has unapplied accepted changes. Show the note "Apply or discard your review before uploading the next draft."
+- On success: refetch, clear any search highlights, and show the toast "Saved their draft as version {n}."
+- `createDocument` and this upload share `readContractText` and `normalizeContractText`. The panel component takes a `NewContractMode` constant (`NewContract`, `NextDraft`) rather than a boolean.
 
-- Add `source: SuggestionSource` to `ReviewSuggestion`, where `SuggestionSource = { Ai: "ai", Reviewer: "reviewer" }`. AI suggestions get `Ai` in `toReviewSuggestion`.
-- **Reviewer edits are created already accepted.** You made them, so you don't accept your own work. They render in the accepted style, with a "You" card. For a reviewer edit, **Undo** removes the edit entirely; it doesn't return to pending.
-- **A review can start without AI.** The first edit, when no review exists, starts one with the document's current ETag, no suggestions, and no dropped list. The apply bar appears as soon as there's anything to apply.
+## 3. Download
 
-### `paragraph_edit.ts` (pure)
-
-`buildParagraphEdit(paragraphStart, originalText, editedText, editId)` returns a reviewer `ReviewSuggestion`, or `null` when nothing changed.
-
-It trims the common prefix and the common suffix between the original and edited paragraph, then snaps both cuts outward to word boundaries. The edit is exactly the changed middle: `start = paragraphStart + prefixLength`, `end = paragraphStart + originalText.length - suffixLength`, and `replacement` is the edited middle. A tracked edit is then as small as what you actually changed, and the word-level rendering from Phase 6 shows it cleanly.
-
-The title is "Your edit", and the rationale is empty (the card shows no rationale line). The id is `you-{n}`.
-
-### Editing rules
-
-- **Open the editor** by double-clicking a paragraph, or pressing `E` on the paragraph holding the active suggestion or the last clicked paragraph. Headings are editable too.
-- **`ParagraphEditor`:** a textarea in the document's serif font, sized to its content, replacing the paragraph in place. **Save** (⌘/Ctrl+Enter) and **Cancel** (Esc), with keyboard hints. Review shortcuts (`A`, `R`, `J`, `K`, `U`, `E`) are ignored while it has focus. That already works for text fields.
-- **A paragraph with any AI suggestion can't be edited.** Opening it shows the inline note "Accept or reject the suggestions here, then apply, before editing this paragraph." AI suggestions point at the saved text, so editing under them would put them in the wrong place.
-- **Editing a paragraph that already has your edit** opens the editor on your edited text. Saving rebuilds the edit against the **original** paragraph text, replacing the old one. Saving it back to the original removes the edit.
-- **One reviewer edit per paragraph,** which the rebuild rule guarantees.
-
-### Reducer (`review_state.ts`)
-
-New actions:
-- `reviewStarted` (`documentId`, `etag`);
-- `editSaved` (an edit from `buildParagraphEdit`; it replaces any reviewer edit with the same paragraph start, or is added in document order);
-- `editRemoved` (`suggestionId`).
-
-`undone` on a reviewer edit dispatches the same removal. `loaded`, when AI suggestions arrive while reviewer edits exist, keeps the reviewer edits and drops any AI suggestion that overlaps one. A dropped one goes into `dropped` with the client-side reason `overlaps_your_edit` ("Overlaps your edit"). This needs a matching `DroppedSuggestionReason` constant in the UI only, so define it in `review_state.ts`. `getAcceptedChanges` already includes every accepted suggestion, so reviewer edits apply with no change.
-
-Asking Claude for suggestions while you have unapplied edits is allowed. The AI sees the saved text, and the suggestions anchor to it.
-
-## 4. Download
-
-- **In the document header:** a **Download** button opening a two-item menu, "Word document (.docx)" and "Plain text (.txt)".
+- **A Download button** in the document header opens a two-item menu: "Word document (.docx)" and "Plain text (.txt)".
 - **`contract_export.ts`:**
-  - `buildDocxBlob(title, text)` creates a `docx` document with the title as `HeadingLevel.TITLE`, each heading paragraph (the existing heading rule) as `HEADING_2`, and each other paragraph as a normal paragraph, then `Packer.toBlob`.
-  - `buildTextBlob(text)` returns a UTF-8 text blob.
-  - `buildDownloadFileName(title, version, extension)` builds `"{Title} v{version}.{ext}"`, replacing characters not allowed in file names with spaces.
-- **What gets downloaded:** the **saved current version**, not unapplied review changes. If a review has unapplied changes, the menu shows a one-line note: "Downloads the saved version. Apply your changes first to include them."
+  - `buildDocxBlob(title, text)`: the title as `HeadingLevel.TITLE`, each heading paragraph as `HEADING_2`, and every other paragraph as a normal paragraph, then `Packer.toBlob`. Headings use the **same rule as the screen**, shared from `document_segments.ts` (a numbered line under 80 characters with words after the number), not a bare `^\d+\.` pattern;
+  - `buildTextBlob(text)`: a UTF-8 text blob;
+  - `buildDownloadFileName(title, version, extension)`: `"{Title} v{version}.{ext}"`, with characters not allowed in file names replaced by spaces.
+- **It downloads the saved current version,** not unapplied review decisions. Only when at least one suggestion is accepted and not yet applied, the menu shows the note "Downloads the saved version. Apply your changes first to include them." A review with nothing accepted shows no note, because the saved text is what you'd want.
+- The Download button sits with the title in the header, not in the find row, so the find field doesn't move.
 
-## 5. README
+## 4. README
 
-- **A new section at the top, "How it fits a negotiation":**
-  - the other side's draft comes in as a new contract (version 1);
-  - you mark it up with your own tracked edits and Claude's suggestions;
-  - you apply them as the next version, download it, and send it back;
-  - their next draft becomes the next version.
+- **"How it fits a negotiation"** goes near the top: one short paragraph and four steps.
+  1. The other side's draft comes in as a new contract (version 1).
+  2. You review it with Claude, accepting and rejecting suggestions.
+  3. You apply your decisions as the next version and download it to send back.
+  4. When their reply comes back, **Upload next draft** saves it as the next version of the same contract, and the cycle repeats.
+- **Review UI:** add adding a contract (.docx, .txt, or paste) and downloading.
+- **A "Why plain text" paragraph** in API design: every feature depends on exact character offsets (edit targets, versioned writes, search highlights, anchoring AI suggestions), so documents are plain text by design. Rich formatting needs a document model where a position is no longer a character offset.
+- **Next steps:** add a **"Meet lawyers in Word"** item at the top. Lawyers live in Microsoft Word, so the production client is a Word add-in (Office.js) calling this same API:
+  - Claude's suggestions appear as native Word tracked changes, with the rationale as comments;
+  - search and the review panel live in Word's task pane;
+  - formatting stays untouched, because the add-in maps character ranges onto Word's own ranges.
 
-  Keep it to one short paragraph and a 4-step list.
-- **Review UI:** describe adding a contract (.docx, .txt, or paste), editing (double-click or `E`), and downloading. Add `E` to the shortcuts table.
-- **Next steps:** keep Word formatting on import and export, compare two versions as a blackline, and show the other side's changes when their next draft comes in.
-- **Screenshots:** add `new_contract.png` (the panel with a .docx preview) and `your_edit.png` (a reviewer edit next to AI suggestions, light), and re-take `review_light.png` if the cards changed.
+  The engine, versioning, search, and AI anchoring all carry over unchanged. Also list:
+  - your own edits as tracked changes in the web UI, staged next to Claude's and applied as one version;
+  - keeping formatting on import and export;
+  - PDF import;
+  - a blackline compare between versions, showing what the other side changed in their draft.
 
-## 6. Tests
+  Rewrite the existing next step that calls ".docx import and export" future work, so it doesn't contradict this phase. What remains future is **keeping formatting**.
+- **Screenshots:** add `new_contract.png` (the panel with a .docx preview).
 
-### `contract_import.test.ts`
+## 5. Tests
 
+`contract_import.test.ts`:
 - `detects docx and txt extensions case-insensitively`
 - `marks other extensions unsupported`
 - `normalizes Windows line endings and extra blank lines`
-- `reads a small docx fixture into paragraphs` (commit a tiny `.docx` fixture with two numbered sections under `src/test_fixtures/`)
+- `reads a small docx fixture into paragraphs` (a tiny committed `src/test_fixtures/two_sections.docx` with two numbered sections; generate it once with the `docx` library)
 
-### `paragraph_edit.test.ts`
-
-- `returns null when the paragraph is unchanged`
-- `trims the shared prefix and suffix to the changed words`
-- `snaps cuts to word boundaries`
-- `handles an edit at the start and at the end of the paragraph`
-- `offsets the edit by the paragraph start`
-
-### `review_state.test.ts`
-
-- `reviewStarted creates an empty review with the document's ETag`
-- `editSaved adds an accepted reviewer edit`
-- `editSaved replaces the earlier edit in the same paragraph`
-- `undone on a reviewer edit removes it`
-- `loaded keeps reviewer edits and drops AI suggestions that overlap them`
-- `getAcceptedChanges includes reviewer edits and accepted AI suggestions together`
-
-### `contract_export.test.ts`
-
+`contract_export.test.ts`:
 - `builds a file name with the version and no unsafe characters`
-- `builds a docx blob with one heading for each numbered section` (unzip with the `docx` package's own reader, or JSZip if that's what it bundles, and count the heading paragraphs)
+- `builds a docx with one heading for each numbered section` (read it back with mammoth's HTML conversion and count heading tags; `extractRawText` drops heading styles, so it can't prove them)
 
-### `review_flow.test.tsx`
-
+`review_flow.test.tsx`:
 - `reviewer adds a contract from pasted text and it opens`
-- `reviewer edits a paragraph and applies it as a new version`: double-click, change one word, ⌘Enter, Apply. Assert the `PATCH` body holds one range change covering just that word.
-- `editing a paragraph with an AI suggestion shows the note instead of the editor`
+- `download menu notes unapplied accepted changes`, and `download menu shows no note when nothing is accepted or no review is open`
+- `uploading the next draft sends one whole-document range change with If-Match`
+- `uploading an identical draft is refused`
+
+In `contract_import.test.ts` also:
+- `refuses pasted text over 10MB`
 
 ## Checkpoints ✅
 
 Stop at each checkpoint and report before going on. Take screenshots in a visible browser.
 
-1. **Add a contract.** Import a real `.docx` (write a short two-section one in Word or Pages, or generate one with the `docx` library) and a `.txt`, plus a paste. Report screenshots of the panel with a preview, and the new contract open.
-2. **Edit as tracked changes.** On a freshly reseeded MSA:
-   - make two edits of your own, then run "Make the indemnification mutual";
-   - accept one AI suggestion and reject one;
-   - apply, and check the new version holds both your edits and the accepted suggestion.
-
-   Report the `PATCH` body (offsets and replacements only, no full text) and screenshots of the mixed review.
-3. **Download.** Download the new version as `.docx` and open it. Report that its title and section headings came through, and the file names.
-4. **Final.** `make ui-lint`, `make ui-test`, `make lint`, and `make test` totals; `make reseed`; the README updates and screenshots; commit and push.
+1. **Add a contract.** Generate a `.docx` from the SaaS sample contract's text with the `docx` library (a real contract, so the playbook has something to find), then import it, plus a `.txt` and a paste. Report screenshots of the panel with a preview, and the new contract open. Run "Review against our playbook" on the imported `.docx`, and report the suggestion count. Keep the two-section fixture only for the unit test.
+2. **Next draft.** On that imported contract, upload a modified copy as the next draft. Report the new version number and the versions list (`GET /documents/{id}/versions`).
+3. **Download.** Download a version as `.docx` and open it. Report that the title and section headings came through, and the file names.
+4. **Final.** `make ui-lint`, `make ui-test`, `make lint`, and `make test` totals; `make reseed` (the import leaves extra contracts behind); README updates and screenshots; commit and push.
 
 ## Definition of done
 
 - [ ] You can add a contract from `.docx`, `.txt`, or pasted text, with a preview and plain error messages.
-- [ ] You can edit any paragraph without AI suggestions. Edits appear as tracked changes with "You" cards, and apply together with accepted AI suggestions as one version.
+- [ ] You can upload the other side's next draft as the next version of the same contract.
 - [ ] You can download the saved version as `.docx` or `.txt`.
-- [ ] The README tells the negotiation story, and the new screenshots are in.
-- [ ] Every test named in section 6 exists and passes, all lint is clean, and it's pushed.
+- [ ] The README tells the negotiation story, explains why the text is plain, and lists the Word add-in as the lead next step.
+- [ ] Every test named in section 5 passes, lint is clean, the sample data is reseeded, and it's pushed.

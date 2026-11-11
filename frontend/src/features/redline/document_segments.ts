@@ -110,6 +110,18 @@ function splitParagraphSpans(text: string): ParagraphSpan[] {
 }
 
 /**
+ * Return each paragraph's words, without the blank line after it.
+ * @param text - The full document.
+ * @returns The paragraphs, in order.
+ * @throws Does not throw.
+ */
+export function getParagraphTexts(text: string): string[] {
+  return splitParagraphSpans(text)
+    .map((span) => text.slice(span.start, span.end).replace(/\s+$/, ""))
+    .filter((paragraph) => paragraph !== "");
+}
+
+/**
  * Keep a suggestion that crosses a paragraph break inside the paragraph where it starts.
  * @param spans - The paragraph spans.
  * @param suggestions - The suggestions that may cross a break.
@@ -174,7 +186,7 @@ function buildParagraph(
  * @returns Whether it renders as a heading.
  * @throws Does not throw.
  */
-function isHeading(paragraphText: string): boolean {
+export function isHeading(paragraphText: string): boolean {
   const content = paragraphText.replace(/\s+$/, "");
   return content.length < HEADING_CHARACTER_LIMIT && HEADING_PATTERN.test(content);
 }

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +8,7 @@ import { REVIEWER_NAME } from "./api/endpoints.ts";
 import documentStyles from "./features/redline/document_view.module.css";
 
 const DOCUMENT_ID = "document-1";
+const CREATED_ID = "document-2";
 const ETAG = '"document-1-1"';
 const DOCUMENT_TEXT = "The Customer shall indemnify the Company.\n\nThe parties sign below.";
 const SHALL_START = 13;
@@ -82,6 +83,7 @@ function installFetch(
   documentText: string = DOCUMENT_TEXT,
 ): CapturedRequest[] {
   const requests: CapturedRequest[] = [];
+  const created = new Map<string, { title: string; text: string }>();
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -108,6 +110,21 @@ function installFetch(
           { headers: { ETag: ETAG } },
         );
       }
+      if (method === "POST" && url.endsWith("/documents") && typeof init?.body === "string") {
+        const body = JSON.parse(init.body) as { title: string; text: string };
+        created.set(CREATED_ID, { title: body.title, text: body.text });
+        return Response.json(
+          {
+            id: CREATED_ID,
+            title: body.title,
+            version: 1,
+            text: body.text,
+            created_at: "2026-11-10T00:00:00Z",
+            updated_at: "2026-11-10T00:00:00Z",
+          },
+          { headers: { ETag: '"document-2-1"' } },
+        );
+      }
       if (method === "PATCH") {
         if (applyStatus === 412) {
           return Response.json(
@@ -127,15 +144,32 @@ function installFetch(
           applied_edits: [],
         });
       }
+      if (url.includes(`/documents/${CREATED_ID}`)) {
+        const stored = created.get(CREATED_ID);
+        return Response.json(
+          {
+            id: CREATED_ID,
+            title: stored === undefined ? "" : stored.title,
+            version: 1,
+            text: stored === undefined ? "" : stored.text,
+            created_at: "2026-11-10T00:00:00Z",
+            updated_at: "2026-11-10T00:00:00Z",
+          },
+          { headers: { ETag: '"document-2-1"' } },
+        );
+      }
       if (url.includes(`/documents/${DOCUMENT_ID}`)) {
-        return Response.json({
-          id: DOCUMENT_ID,
-          title: "Services agreement",
-          version: 1,
-          text: documentText,
-          created_at: "2026-11-10T00:00:00Z",
-          updated_at: "2026-11-10T00:00:00Z",
-        });
+        return Response.json(
+          {
+            id: DOCUMENT_ID,
+            title: "Services agreement",
+            version: 1,
+            text: documentText,
+            created_at: "2026-11-10T00:00:00Z",
+            updated_at: "2026-11-10T00:00:00Z",
+          },
+          { headers: { ETag: ETAG } },
+        );
       }
       return Response.json({
         documents: [
@@ -276,6 +310,36 @@ describe("review flow", () => {
     expect(screen.getByText("1 of 5")).toBeInTheDocument();
   });
 
+  it("slash focuses the contract list search when no contract is open", async () => {
+    installFetch(200, []);
+    const user = userEvent.setup();
+    renderApp();
+    await screen.findByRole("button", { name: /Services agreement/ });
+
+    await user.keyboard("/");
+
+    const listSearch = screen.getByPlaceholderText("Search contracts");
+    expect(listSearch).toHaveFocus();
+    expect(within(listSearch.closest("label") as HTMLElement).getByText("/")).toBeInTheDocument();
+  });
+
+  it("slash focuses find in the open contract", async () => {
+    installFetch(200, []);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(await screen.findByRole("button", { name: /Services agreement/ }));
+    const findField = await screen.findByPlaceholderText("Search in this contract");
+
+    await user.keyboard("/");
+
+    expect(findField).toHaveFocus();
+    expect(within(findField.closest("label") as HTMLElement).getByText("/")).toBeInTheDocument();
+    const listSearch = screen.getByPlaceholderText("Search contracts");
+    expect(
+      within(listSearch.closest("label") as HTMLElement).queryByText("/"),
+    ).not.toBeInTheDocument();
+  });
+
   it("filters contract names from the first character without searching text", async () => {
     const requests = installFetch(200, []);
     const user = userEvent.setup();
@@ -290,6 +354,116 @@ describe("review flow", () => {
     expect(screen.getByRole("heading", { name: "Contracts" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Services agreement/ })).toBeInTheDocument();
     expect(requests.some((request) => request.url.includes("/search"))).toBe(false);
+  });
+
+  it("reviewer adds a contract from pasted text and it opens", async () => {
+    installFetch(200, []);
+    const user = userEvent.setup();
+    renderApp();
+    await screen.findByRole("button", { name: /Services agreement/ });
+
+    await user.click(screen.getByRole("button", { name: "+ New contract" }));
+    await user.click(screen.getByRole("button", { name: "Paste text instead" }));
+    await user.type(screen.getByRole("textbox", { name: "Title" }), "Vendor draft");
+    await user.type(screen.getByRole("textbox", { name: "Contract text" }), "1. Term\n\nOne year.");
+    await user.click(screen.getByRole("button", { name: "Add contract" }));
+
+    expect(await screen.findByRole("heading", { name: "Vendor draft" })).toBeInTheDocument();
+  });
+
+  it("download menu notes unapplied accepted changes", async () => {
+    installFetch(200, ONE_WORD_SUGGESTIONS);
+    const user = userEvent.setup();
+    renderApp();
+    await openPlaybookReview();
+    await user.keyboard("a");
+
+    await user.click(screen.getByRole("button", { name: "Download" }));
+
+    expect(
+      screen.getByText("Downloads the saved version. Apply your changes first to include them."),
+    ).toBeInTheDocument();
+  });
+
+  it("download menu shows no note when nothing is accepted or no review is open", async () => {
+    installFetch(200, ONE_WORD_SUGGESTIONS);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(await screen.findByRole("button", { name: /Services agreement/ }));
+    await user.click(screen.getByRole("button", { name: "Download" }));
+
+    expect(
+      screen.queryByText("Downloads the saved version. Apply your changes first to include them."),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Review against our playbook" }));
+    await screen.findByRole("heading", { name: "Prefer will" });
+    await user.click(screen.getByRole("button", { name: "Download" }));
+
+    expect(
+      screen.queryByText("Downloads the saved version. Apply your changes first to include them."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("uploading the next draft sends one whole-document range change with If-Match", async () => {
+    const requests = installFetch(200, []);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(await screen.findByRole("button", { name: /Services agreement/ }));
+    await screen.findByRole("heading", { name: "Services agreement" });
+
+    await user.click(screen.getByRole("button", { name: "Upload next draft" }));
+    await user.click(screen.getByRole("button", { name: "Paste text instead" }));
+    await user.type(screen.getByRole("textbox", { name: "Contract text" }), "Their reply.");
+    await user.click(screen.getByRole("button", { name: "Save as version 2" }));
+
+    const patch = requests.find((request) => request.method === "PATCH");
+    expect(patch).toBeDefined();
+    if (patch === undefined) {
+      return;
+    }
+    expect(patch.ifMatch).toBe(ETAG);
+    expect(patch.body === null ? null : JSON.parse(patch.body)).toEqual({
+      author: REVIEWER_NAME,
+      changes: [
+        {
+          target: { type: "range", start: 0, end: DOCUMENT_TEXT.length },
+          replacement: "Their reply.",
+        },
+      ],
+    });
+  });
+
+  it("uploading an identical draft is refused", async () => {
+    const requests = installFetch(200, []);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(await screen.findByRole("button", { name: /Services agreement/ }));
+    await screen.findByRole("heading", { name: "Services agreement" });
+    const requestsBeforeSave = requests.length;
+
+    await user.click(screen.getByRole("button", { name: "Upload next draft" }));
+    await user.click(screen.getByRole("button", { name: "Paste text instead" }));
+    await user.type(screen.getByRole("textbox", { name: "Contract text" }), DOCUMENT_TEXT);
+    await user.click(screen.getByRole("button", { name: "Save as version 2" }));
+
+    expect(screen.getByText("This draft matches the saved version")).toBeInTheDocument();
+    expect(requests.slice(requestsBeforeSave).some((request) => request.method === "PATCH")).toBe(
+      false,
+    );
+  });
+
+  it("uploading the next draft is blocked while accepted changes are unapplied", async () => {
+    installFetch(200, ONE_WORD_SUGGESTIONS);
+    const user = userEvent.setup();
+    renderApp();
+    await openPlaybookReview();
+    await user.keyboard("a");
+
+    expect(screen.getByRole("button", { name: "Upload next draft" })).toBeDisabled();
+    expect(
+      screen.getByText("Apply or discard your review before uploading the next draft."),
+    ).toBeInTheDocument();
   });
 
   it("stale review shows the changed-since banner", async () => {

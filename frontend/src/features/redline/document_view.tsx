@@ -1,7 +1,15 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
 
 import type { DocumentResponse } from "../../api/types.ts";
+import { Button, ButtonTone, ButtonVariant } from "../../components/button.tsx";
+import { KeyboardHint } from "../../components/keyboard_hint.tsx";
 import { StatusBanner } from "../../components/status_banner.tsx";
+import {
+  buildDocxBlob,
+  buildDownloadFileName,
+  buildTextBlob,
+  downloadBlob,
+} from "../documents/contract_export.ts";
 import { MAXIMUM_FIND_MATCHES, findTextMatches } from "./find_in_text.ts";
 import {
   ChangeState,
@@ -23,6 +31,9 @@ import styles from "./document_view.module.css";
 
 const PULSE_DURATION_MS = 600;
 const MATCH_STEP = 1;
+const DOWNLOAD_PROBLEM = "Couldn't build that file.";
+const WORD_EXTENSION = "docx";
+const TEXT_EXTENSION = "txt";
 
 /**
  * The open contract, with suggestions and search matches drawn in the text.
@@ -36,6 +47,10 @@ const MATCH_STEP = 1;
  * @param focusEnd - The end of the jumped-to match.
  * @param loading - Whether the contract is still opening.
  * @param failed - Whether the contract could not be loaded.
+ * @param findInputRef - The field slash focuses while this contract is open.
+ * @param downloadNote - Why a download would miss accepted changes, or empty.
+ * @param uploadNote - Why the next draft cannot be uploaded, or empty.
+ * @param onUploadNextDraft - Opens the next-draft panel.
  * @param onSelectSuggestion - Makes a suggestion active.
  * @param onHoverSuggestion - Highlights a suggestion from the text.
  * @returns The document column.
@@ -52,6 +67,10 @@ export function DocumentView({
   focusEnd,
   loading,
   failed,
+  findInputRef,
+  downloadNote,
+  uploadNote,
+  onUploadNextDraft,
   onSelectSuggestion,
   onHoverSuggestion,
 }: {
@@ -65,6 +84,10 @@ export function DocumentView({
   focusEnd: number | null;
   loading: boolean;
   failed: boolean;
+  findInputRef: Ref<HTMLInputElement>;
+  downloadNote: string;
+  uploadNote: string;
+  onUploadNextDraft: () => void;
   onSelectSuggestion: (suggestionId: string) => void;
   onHoverSuggestion: (suggestionId: string | null) => void;
 }): ReactNode {
@@ -72,7 +95,10 @@ export function DocumentView({
   const [matchIndex, setMatchIndex] = useState(0);
   const [trackedQuery, setTrackedQuery] = useState("");
   const [trackedDocumentId, setTrackedDocumentId] = useState("");
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const [downloadProblem, setDownloadProblem] = useState("");
   const columnRef = useRef<HTMLDivElement>(null);
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
   const found = findTextMatches(document?.text ?? "", query, MAXIMUM_FIND_MATCHES);
   const matches = found.matches;
   const shownIndex = matches.length === 0 ? 0 : Math.min(matchIndex, matches.length - 1);
@@ -137,6 +163,44 @@ export function DocumentView({
   }, [scrollStart, document?.text]);
 
   useEffect(() => {
+    if (!downloadMenuOpen) {
+      return;
+    }
+    /**
+     * Close the menu when the click lands outside it.
+     * @param event - The pointer event.
+     * @throws Does not throw.
+     */
+    function closeOnPointer(event: MouseEvent): void {
+      if (!(event.target instanceof Node)) {
+        return;
+      }
+      if (downloadMenuRef.current?.contains(event.target)) {
+        return;
+      }
+      setDownloadMenuOpen(false);
+    }
+    /**
+     * Close the menu on Escape without clearing the contract search.
+     * @param event - The key event.
+     * @throws Does not throw.
+     */
+    function closeOnEscape(event: globalThis.KeyboardEvent): void {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.stopPropagation();
+      setDownloadMenuOpen(false);
+    }
+    globalThis.document.addEventListener("mousedown", closeOnPointer);
+    globalThis.document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      globalThis.document.removeEventListener("mousedown", closeOnPointer);
+      globalThis.document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [downloadMenuOpen]);
+
+  useEffect(() => {
     if (activeSuggestionId === null || columnRef.current === null) {
       return;
     }
@@ -169,26 +233,108 @@ export function DocumentView({
     );
   }
 
+  const savedDocument = document;
+
+  /**
+   * Download the saved contract as a Word file.
+   * @throws Does not throw.
+   */
+  async function downloadWord(): Promise<void> {
+    try {
+      const blob = await buildDocxBlob(savedDocument.title, savedDocument.text);
+      downloadBlob(
+        blob,
+        buildDownloadFileName(savedDocument.title, savedDocument.version, WORD_EXTENSION),
+      );
+      setDownloadMenuOpen(false);
+    } catch {
+      setDownloadProblem(DOWNLOAD_PROBLEM);
+    }
+  }
+
+  /**
+   * Download the saved contract as plain text.
+   * @throws Does not throw.
+   */
+  function downloadPlainText(): void {
+    const blob = buildTextBlob(savedDocument.text);
+    downloadBlob(
+      blob,
+      buildDownloadFileName(savedDocument.title, savedDocument.version, TEXT_EXTENSION),
+    );
+    setDownloadMenuOpen(false);
+  }
+
   return (
     <div className={styles.column} ref={columnRef}>
       <header className={styles.header}>
         <div className={styles.heading}>
-          <h1 className={styles.title}>{document.title}</h1>
+          <div className={styles.titleRow}>
+            <h1 className={styles.title}>{document.title}</h1>
+            <div className={styles.fileActions} ref={downloadMenuRef}>
+              <Button
+                variant={ButtonVariant.Secondary}
+                tone={ButtonTone.Default}
+                label="Upload next draft"
+                shortcut=""
+                disabled={uploadNote !== ""}
+                onClick={onUploadNextDraft}
+              />
+              <Button
+                variant={ButtonVariant.Secondary}
+                tone={ButtonTone.Default}
+                label="Download"
+                shortcut=""
+                disabled={false}
+                onClick={() => {
+                  setDownloadProblem("");
+                  setDownloadMenuOpen((open) => !open);
+                }}
+              />
+              {downloadMenuOpen ? (
+                <div className={styles.menu} role="menu">
+                  <button
+                    type="button"
+                    className={styles.menuItem}
+                    role="menuitem"
+                    onClick={() => void downloadWord()}
+                  >
+                    Word document (.docx)
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.menuItem}
+                    role="menuitem"
+                    onClick={() => downloadPlainText()}
+                  >
+                    Plain text (.txt)
+                  </button>
+                  {downloadNote === "" ? null : <p className={styles.menuNote}>{downloadNote}</p>}
+                  {downloadProblem === "" ? null : (
+                    <p className={styles.menuNote}>{downloadProblem}</p>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </div>
           <p className={styles.version}>Version {document.version}</p>
+          {uploadNote === "" ? null : <p className={styles.actionNote}>{uploadNote}</p>}
         </div>
         <div className={styles.search}>
-          <label>
+          <label className={styles.field}>
             <span className="visuallyHidden">Search in this contract</span>
             <input
-              className={styles.field}
+              ref={findInputRef}
+              className={styles.findInput}
               value={query}
               placeholder="Search in this contract"
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={onFindKeyDown}
             />
+            <KeyboardHint keys="/" />
           </label>
           {query.trim() === "" ? null : (
-            <>
+            <div className={styles.matches}>
               <span className={styles.matchCount}>
                 {findPositionLabel(shownIndex, matches.length, found.capped)}
               </span>
@@ -210,7 +356,7 @@ export function DocumentView({
               >
                 Next
               </button>
-            </>
+            </div>
           )}
         </div>
       </header>
