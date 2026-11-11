@@ -118,7 +118,7 @@ export function NewContractPanel({
         </div>
       ) : null}
       {failureMessage === "" && preview.failureMessage === "" ? null : (
-        <p className={styles.problem} role="alert">
+        <p className={styles.failure} role="alert">
           {failureMessage === "" ? preview.failureMessage : failureMessage}
         </p>
       )}
